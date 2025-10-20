@@ -19,6 +19,10 @@ function Sidebar() {
   const handleLogout = () => {
     localStorage.removeItem('adminToken')
     localStorage.removeItem('adminUser')
+    
+    // Dispatch custom event to notify App component of auth state change
+    window.dispatchEvent(new Event('authStateChange'))
+    
     navigate('/login')
   }
 

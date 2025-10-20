@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import logo from '../assets/logo.png'
+import dxLogoWhite from '../assets/dxLogoWhite.png'
 
 function Login() {
   const navigate = useNavigate()
@@ -13,7 +14,8 @@ function Login() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
 
   const handleChange = (e) => {
     setFormData({
@@ -37,15 +39,17 @@ function Login() {
       })
 
       if (response.data.success) {
-        setSuccess('Login successful!')
         // Store token in localStorage
         localStorage.setItem('adminToken', response.data.token)
         localStorage.setItem('adminUser', JSON.stringify(response.data.admin))
         
+        // Dispatch custom event to notify App component of auth state change
+        window.dispatchEvent(new Event('authStateChange'))
+        
         // Navigate to dashboard
-        setTimeout(() => {
-          navigate('/dashboard')
-        }, 1000)
+        navigate('/dashboard')
+      } else {
+        setError('Login failed. Please check your credentials.')
       }
     } catch (err) {
       if (err.response?.data?.message) {
@@ -64,7 +68,7 @@ function Login() {
 
   return (
     <div 
-      className="min-h-screen flex"
+      className="min-h-screen flex relative"
       style={{
         background: 'radial-gradient(ellipse at 75% 50%, #AC28DC 0%, #7E1EB7 20%, #501392 45%, #000000 100%)'
       }}
@@ -165,6 +169,25 @@ function Login() {
             </div>
           </form>
         </div>
+      </div>
+
+      {/* Bottom Center - Powered By D4DX */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-3">
+        <span 
+          className="text-white text-sm font-medium opacity-80"
+          style={{
+            fontFamily: 'Archivo Black',
+            fontWeight: 400,
+            letterSpacing: '0.5px'
+          }}
+        >
+          POWERED BY
+        </span>
+        <img 
+          src={dxLogoWhite} 
+          alt="D4DX Logo" 
+          className="h-8 w-auto opacity-90 hover:opacity-100 transition-opacity duration-200"
+        />
       </div>
     </div>
   )
