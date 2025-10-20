@@ -52,7 +52,9 @@ function Videos() {
   const [selectedFileName, setSelectedFileName] = useState('')
 
   // API Base URL
-  const API_BASE = import.meta.env.VITE_API_BASE_URL 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL
+  
+  // Debug logging
 
   // Fetch videos
   const fetchVideos = async () => {

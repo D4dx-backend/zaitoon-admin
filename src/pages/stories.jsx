@@ -91,7 +91,9 @@ function Stories() {
   })
 
   // API Base URL
-  const API_BASE = 'http://localhost:5000/api'
+  const API_BASE = import.meta.env.VITE_API_BASE_URL
+  
+  // Debug logging
 
   // Fetch stories
   const fetchStories = async () => {
@@ -419,18 +421,15 @@ function Stories() {
 
   // Fetch single story details
   const fetchStoryDetails = async (storyId) => {
-    console.log('fetchStoryDetails called with storyId:', storyId)
     try {
       const response = await fetch(`${API_BASE}/stories/${storyId}`)
       const data = await response.json()
-      console.log('fetchStoryDetails response:', data)
       if (data.success) {
         setSelectedStory(data.data)
         // Auto-select first season if available
         if (data.data.seasons && data.data.seasons.length > 0) {
           setSelectedSeasonId(data.data.seasons[0]._id)
         }
-        console.log('Story details updated, seasons count:', data.data.seasons?.length)
       } else {
         showModal('error', 'Failed to fetch story details')
       }
@@ -525,16 +524,8 @@ function Stories() {
 
   // Handle season update
   const handleSeasonUpdate = async (e) => {
-    console.log('handleSeasonUpdate called!', e)
     e.preventDefault()
     
-    // Debug logging
-    console.log('Season Update Debug:', {
-      selectedStoryId,
-      editingSeason: editingSeason?._id,
-      selectedStory: selectedStory?._id,
-      seasonForm
-    })
     
     try {
       setLoading(true)
@@ -584,18 +575,8 @@ function Stories() {
 
   // Handle episode update
   const handleEpisodeUpdate = async (e) => {
-    console.log('handleEpisodeUpdate called!', e)
     e.preventDefault()
     
-    // Debug logging
-    console.log('Episode Update Debug:', {
-      selectedStoryId,
-      selectedSeasonId,
-      editingEpisode: editingEpisode?._id,
-      selectedStory: selectedStory?._id,
-      episodeForm,
-      files
-    })
     
     try {
       setLoading(true)
@@ -653,7 +634,6 @@ function Stories() {
 
   // Handle season delete
   const handleSeasonDelete = async (seasonId) => {
-    console.log('handleSeasonDelete called!', seasonId)
     try {
       setLoading(true)
       showModal('loading', 'Deleting season...')
@@ -695,13 +675,6 @@ function Stories() {
 
   // Handle episode delete
   const handleEpisodeDelete = async (episodeId) => {
-    console.log('handleEpisodeDelete called!', episodeId)
-    console.log('Current state values:', {
-      selectedStoryId,
-      selectedSeasonId,
-      selectedStory: selectedStory?._id,
-      expandedCard
-    })
     try {
       setLoading(true)
       showModal('loading', 'Deleting episode...')
@@ -716,22 +689,12 @@ function Stories() {
       let seasonId = selectedSeasonId
       if (!seasonId && selectedStory?.seasons?.length > 0) {
         seasonId = selectedStory.seasons[0]._id
-        console.log('Using first season as fallback:', seasonId)
       }
       
       if (!seasonId) {
         throw new Error('Season ID is missing')
       }
       
-      console.log('Delete Debug Info:', {
-        storyId,
-        selectedSeasonId,
-        episodeId,
-        selectedStoryId,
-        selectedStoryIdFromState: selectedStory?._id
-      })
-      
-      console.log('Delete API URL:', `${API_BASE}/stories/${storyId}/seasons/${seasonId}/episodes/${episodeId}`)
       
       const response = await fetch(`${API_BASE}/stories/${storyId}/seasons/${seasonId}/episodes/${episodeId}`, {
         method: 'DELETE',
@@ -740,15 +703,12 @@ function Stories() {
         }
       })
 
-      console.log('Delete response status:', response.status)
       const data = await response.json()
-      console.log('Delete response data:', data)
 
       if (data.success) {
         showModal('success', 'Episode deleted successfully!')
         // Refresh the story details to show updated data
         if (expandedCard) {
-          console.log('Refreshing story details for:', expandedCard)
           fetchStoryDetails(expandedCard)
         }
       } else {

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/login'
 import Dashboard from './pages/dashboard'
@@ -9,6 +9,60 @@ import KidsSubmission from './pages/kidsSubmission'
 import BrightBox from './pages/brightBox'
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Check if user is authenticated on app load
+    const token = localStorage.getItem('adminToken')
+    setIsAuthenticated(!!token)
+    setIsLoading(false)
+  }, [])
+
+  // Listen for storage changes (when login sets token)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const token = localStorage.getItem('adminToken')
+      setIsAuthenticated(!!token)
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Also listen for custom events (for same-tab updates)
+    window.addEventListener('authStateChange', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('authStateChange', handleStorageChange)
+    }
+  }, [])
+
+  // Force re-check authentication state when navigating
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const token = localStorage.getItem('adminToken')
+      setIsAuthenticated(!!token)
+    }
+
+    // Listen for popstate events (back/forward navigation)
+    window.addEventListener('popstate', handleRouteChange)
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange)
+    }
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+          <p className="text-gray-400 mt-4">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Router>
       <Routes>
@@ -16,7 +70,7 @@ function App() {
         <Route 
           path="/dashboard" 
           element={
-            localStorage.getItem('adminToken') ? 
+            isAuthenticated ? 
             <Dashboard /> : 
             <Navigate to="/login" replace />
           } 
@@ -24,7 +78,7 @@ function App() {
         <Route 
           path="/single-stories" 
           element={
-            localStorage.getItem('adminToken') ? 
+            isAuthenticated ? 
             <SingleStory /> : 
             <Navigate to="/login" replace />
           } 
@@ -32,7 +86,7 @@ function App() {
         <Route 
           path="/stories" 
           element={
-            localStorage.getItem('adminToken') ? 
+            isAuthenticated ? 
             <Stories /> : 
             <Navigate to="/login" replace />
           } 
@@ -40,7 +94,7 @@ function App() {
         <Route 
           path="/videos" 
           element={
-            localStorage.getItem('adminToken') ? 
+            isAuthenticated ? 
             <Videos /> : 
             <Navigate to="/login" replace />
           } 
@@ -48,7 +102,7 @@ function App() {
         <Route 
           path="/kids-submissions" 
           element={
-            localStorage.getItem('adminToken') ? 
+            isAuthenticated ? 
             <KidsSubmission /> : 
             <Navigate to="/login" replace />
           } 
@@ -56,7 +110,7 @@ function App() {
         <Route 
           path="/bright-box" 
           element={
-            localStorage.getItem('adminToken') ? 
+            isAuthenticated ? 
             <BrightBox /> : 
             <Navigate to="/login" replace />
           } 

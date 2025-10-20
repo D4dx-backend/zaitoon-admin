@@ -212,7 +212,6 @@ const BrightBox = () => {
     showModal('confirmation', 'Are you sure you want to delete this bright box? This will also delete all sub-categories and stories.', async () => {
       setLoading(true)
       try {
-        console.log('Attempting to delete bright box with ID:', id)
         const response = await fetch(`${API_BASE}/bright-boxes/${id}`, {
           method: 'DELETE',
           headers: {
@@ -220,7 +219,6 @@ const BrightBox = () => {
           }
         })
         
-        console.log('Delete response status:', response.status)
         
         if (!response.ok) {
           const errorData = await response.json()
@@ -230,7 +228,6 @@ const BrightBox = () => {
         }
         
         const data = await response.json()
-        console.log('Delete success response:', data)
         
         if (data.success) {
           showModal('success', 'Bright Box deleted successfully!')
@@ -334,7 +331,6 @@ const BrightBox = () => {
     showModal('confirmation', 'Are you sure you want to delete this bright box sub? This will also delete all stories.', async () => {
       setLoading(true)
       try {
-        console.log('Attempting to delete bright box sub with ID:', id)
         const response = await fetch(`${API_BASE}/bright-box-subs/${id}`, {
           method: 'DELETE',
           headers: {
@@ -342,7 +338,6 @@ const BrightBox = () => {
           }
         })
         
-        console.log('Delete response status:', response.status)
         
         if (!response.ok) {
           const errorData = await response.json()
@@ -352,7 +347,6 @@ const BrightBox = () => {
         }
         
         const data = await response.json()
-        console.log('Delete success response:', data)
         
         if (data.success) {
           showModal('success', 'Bright Box Sub deleted successfully!')
@@ -481,7 +475,6 @@ const BrightBox = () => {
     showModal('confirmation', 'Are you sure you want to delete this bright box story?', async () => {
       setLoading(true)
       try {
-        console.log('Attempting to delete bright box story with ID:', id)
         const response = await fetch(`${API_BASE}/bright-box-stories/${id}`, {
           method: 'DELETE',
           headers: {
@@ -489,7 +482,6 @@ const BrightBox = () => {
           }
         })
         
-        console.log('Delete response status:', response.status)
         
         if (!response.ok) {
           const errorData = await response.json()
@@ -499,7 +491,6 @@ const BrightBox = () => {
         }
         
         const data = await response.json()
-        console.log('Delete success response:', data)
         
         if (data.success) {
           showModal('success', 'Bright Box Story deleted successfully!')
