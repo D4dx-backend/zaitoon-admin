@@ -199,10 +199,10 @@ function Dashboard() {
     return (
       <div 
         onClick={onClick}
-        className="relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 hover:scale-105 hover:shadow-2xl border-transparent hover:border-violet-500"
+        className="relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 hover:scale-105 hover:shadow-2xl border-transparent hover:border-violet-500 w-[180px] h-[220px]"
       >
         {/* Full Card - Gradient Background */}
-        <div className="relative w-full h-full min-h-[200px] overflow-hidden bg-gradient-to-br from-violet-600/20 to-purple-600/20 flex items-center justify-center">
+        <div className="relative w-full h-full overflow-hidden bg-gradient-to-br from-violet-600/20 to-purple-600/20 flex items-center justify-center">
           <div className="text-center">
             <div className="w-12 h-12 rounded-full bg-violet-600/30 flex items-center justify-center mb-3 mx-auto">
               <svg className="w-6 h-6 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -228,7 +228,7 @@ function Dashboard() {
       <div key={item._id}>
         {/* Content Card */}
         <div 
-          className={`relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 ${
+          className={`relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 w-[180px] h-[220px] ${
             isThisCardExpanded || isThisSingleStoryExpanded || isThisVideoExpanded
               ? 'scale-110 z-10 shadow-2xl border-blue-500' 
               : 'hover:scale-105 hover:shadow-2xl border-transparent hover:border-gray-600'
@@ -257,8 +257,8 @@ function Dashboard() {
             }
           }}
         >
-          {/* Cover Image */}
-          <div className="relative aspect-[3/2] overflow-hidden">
+          {/* Cover Image with Overlay Titles */}
+          <div className="relative w-full h-full overflow-hidden">
             {item.coverImage ? (
               <img
                 src={item.coverImage}
@@ -274,18 +274,18 @@ function Dashboard() {
                 />
               </div>
             )}
-          </div>
-
-          {/* Content Info */}
-          <div className="p-3">
-            <h3 className="text-white text-sm font-semibold truncate mb-1">
-              {item.title || item.mlTitle || 'Untitled'}
-            </h3>
-            {item.mlTitle && item.title !== item.mlTitle && (
-              <p className="text-gray-400 text-xs truncate">
-                {item.mlTitle}
-              </p>
-            )}
+            
+            {/* Title Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 z-10">
+              <h3 className="text-white text-base font-semibold truncate mb-1">
+                {item.title || item.mlTitle || 'Untitled'}
+              </h3>
+              {item.mlTitle && item.title !== item.mlTitle && (
+                <p className="text-gray-300 text-sm truncate">
+                  {item.mlTitle}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -827,7 +827,7 @@ function Dashboard() {
                 <span className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">→</span>
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-35">
               {stories.map((story) => (
                 <ContentCard
                   key={story._id}
@@ -859,7 +859,7 @@ function Dashboard() {
                 <span className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">→</span>
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-35">
               {singleStories.map((singleStory) => (
                 <ContentCard
                   key={singleStory._id}
@@ -891,7 +891,7 @@ function Dashboard() {
                 <span className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">→</span>
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-35">
               {videos.map((video) => (
                 <ContentCard
                   key={video._id}
