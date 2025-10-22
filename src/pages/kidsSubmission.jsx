@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiUpload, FiImage, FiUser, FiBook, FiStar, FiCheckCircle, FiClock, FiFileText } from 'react-icons/fi'
 import SuccessModal from '../components/SuccessModal'
 import Sidebar from '../components/Sidebar'
+import CustomDropdown from '../components/CustomDropdown'
 import gradient from '../assets/gradiantRight.png'
 
 const KidsSubmission = () => {
@@ -163,6 +164,70 @@ const KidsSubmission = () => {
     }
   }
 
+  // Update submission status
+  const updateSubmissionStatus = async (submissionId, newStatus) => {
+    setLoading(true)
+    
+    try {
+      const response = await fetch(`${API_BASE}/kids-submissions/${submissionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      const data = await response.json()
+      if (data.success) {
+        showModal('success', 'Submission status updated successfully!')
+        fetchSubmissions()
+        // Update the selected submission if it's currently being viewed
+        if (selectedSubmission && selectedSubmission._id === submissionId) {
+          setSelectedSubmission({ ...selectedSubmission, status: newStatus })
+        }
+      } else {
+        showModal('error', data.message || 'Failed to update submission status')
+      }
+    } catch (error) {
+      showModal('error', 'Error updating submission status')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Update submission highlight
+  const updateSubmissionHighlight = async (submissionId, newHighlight) => {
+    setLoading(true)
+    
+    try {
+      const response = await fetch(`${API_BASE}/kids-submissions/${submissionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ highlight: newHighlight })
+      })
+      
+      const data = await response.json()
+      if (data.success) {
+        showModal('success', 'Submission highlight updated successfully!')
+        fetchSubmissions()
+        // Update the selected submission if it's currently being viewed
+        if (selectedSubmission && selectedSubmission._id === submissionId) {
+          setSelectedSubmission({ ...selectedSubmission, highlight: newHighlight })
+        }
+      } else {
+        showModal('error', data.message || 'Failed to update submission highlight')
+      }
+    } catch (error) {
+      showModal('error', 'Error updating submission highlight')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Delete submission
   const deleteSubmission = async (id) => {
     if (!window.confirm('Are you sure you want to delete this submission?')) return
@@ -260,9 +325,9 @@ const KidsSubmission = () => {
   // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Published': return 'text-green-400 bg-green-400/20'
+      case 'Approved': return 'text-green-400 bg-green-400/20'
       case 'Pending': return 'text-yellow-400 bg-yellow-400/20'
-      case 'Draft': return 'text-gray-400 bg-gray-400/20'
+      case 'Rejected': return 'text-red-400 bg-red-400/20'
       default: return 'text-gray-400 bg-gray-400/20'
     }
   }
@@ -290,110 +355,66 @@ const KidsSubmission = () => {
                 ></div>
               </h1>
             </div>
-            <div>
-              <button
-                onClick={() => setShowForm(true)}
-                className="flex items-center justify-center space-x-2 text-white transition duration-200"
-                style={{
-                  background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)',
-                  width: '160px',
-                  height: '36px',
-                  borderRadius: '18px',
-                  fontFamily: 'Fredoka One',
-                  fontWeight: '400',
-                  fontSize: '14px',
-                  lineHeight: '100%',
-                  letterSpacing: '0%',
-                  textAlign: 'center'
-                }}
-              >
-                <FiPlus className="w-3 h-3" />
-                <span>Add Submission</span>
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Submissions Grid */}
+        {/* Submissions Table */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {submissions.map((submission) => (
-              <div
-                key={submission._id}
-                className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 rounded-2xl p-6 hover:border-purple-500/50 transition duration-200"
-              >
-                {/* Content Type & Status */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2 text-purple-400">
-                    {getContentTypeIcon(submission.contentType)}
-                    <span className="text-sm font-medium capitalize">{submission.contentType}</span>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(submission.status)}`}>
-                    {submission.status}
-                  </span>
-                </div>
-
-                {/* Cover Image */}
-                {submission.coverImage && (
-                  <div className="mb-4">
-                    <img
-                      src={submission.coverImage}
-                      alt={submission.title}
-                      className="w-full h-32 object-cover rounded-xl"
-                    />
-                  </div>
-                )}
-
-                {/* Title */}
-                <h3 className="text-white font-semibold mb-2 line-clamp-2">{submission.title}</h3>
-
-                {/* Kid Info */}
-                <div className="mb-4">
-                  <div className="flex items-center space-x-2 text-gray-400 text-sm mb-1">
-                    <FiUser className="w-4 h-4" />
-                    <span>{submission.kidName}</span>
-                    {submission.kidAge && <span>({submission.kidAge})</span>}
-                  </div>
-                  {submission.schoolName && (
-                    <div className="text-gray-500 text-xs">{submission.schoolName}</div>
-                  )}
-                </div>
-
-                {/* Highlight Badge */}
-                {submission.highlight === 'Enable' && (
-                  <div className="flex items-center space-x-1 text-yellow-400 mb-4">
-                    <FiStar className="w-4 h-4" />
-                    <span className="text-xs font-medium">Highlighted</span>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => viewSubmission(submission)}
-                    className="flex-1 flex items-center justify-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl transition duration-200 text-sm"
-                  >
-                    <FiEye className="w-4 h-4" />
-                    <span>View</span>
-                  </button>
-                  <button
-                    onClick={() => editSubmission(submission)}
-                    className="flex-1 flex items-center justify-center space-x-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-xl transition duration-200 text-sm"
-                  >
-                    <FiEdit className="w-4 h-4" />
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    onClick={() => deleteSubmission(submission._id)}
-                    className="flex-1 flex items-center justify-center space-x-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl transition duration-200 text-sm"
-                  >
-                    <FiTrash2 className="w-4 h-4" />
-                    <span>Delete</span>
-                  </button>
-                </div>
+          {submissions.length > 0 ? (
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-800/50 border-b border-gray-700/50">
+                    <tr>
+                      <th className="text-left py-4 px-6 text-gray-300 font-semibold">Title</th>
+                      <th className="text-left py-4 px-6 text-gray-300 font-semibold">Type</th>
+                      <th className="text-left py-4 px-6 text-gray-300 font-semibold">Status</th>
+                      <th className="text-left py-4 px-6 text-gray-300 font-semibold">Highlight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissions.map((submission) => (
+                      <tr 
+                        key={submission._id} 
+                        className="border-b border-gray-800/50 hover:bg-gray-800/30 transition duration-200 cursor-pointer"
+                        onClick={() => viewSubmission(submission)}
+                      >
+                        <td className="py-4 px-6">
+                          <div className="max-w-xs">
+                            <h3 className="text-white font-medium truncate">{submission.title}</h3>
+                            {submission.moreTitle && (
+                              <p className="text-gray-400 text-sm truncate">{submission.moreTitle}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center space-x-2 text-purple-400">
+                            {getContentTypeIcon(submission.contentType)}
+                            <span className="text-sm font-medium capitalize">{submission.contentType}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(submission.status)}`}>
+                            {submission.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          {submission.highlight === 'Enable' ? (
+                            <div className="flex items-center space-x-1 text-yellow-400">
+                              <FiStar className="w-4 h-4" />
+                              <span className="text-xs font-medium">Highlighted</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500 text-sm">Disabled</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : null}
 
           {/* Loading State */}
           {loading && (
@@ -406,7 +427,7 @@ const KidsSubmission = () => {
           {!loading && submissions.length === 0 && (
             <div className="text-center py-12">
               <div className="text-gray-400 text-lg">No submissions found</div>
-              <p className="text-gray-500 mt-2">Create your first submission to get started</p>
+              <p className="text-gray-500 mt-2">No submissions to display yet.</p>
             </div>
           )}
         </div>
@@ -423,8 +444,8 @@ const KidsSubmission = () => {
 
       {/* Submission Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+          <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-600/50 scrollbar-hide scroll-smooth">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
                 {editingSubmission ? 'Edit Submission' : 'Add New Submission'}
@@ -670,8 +691,8 @@ const KidsSubmission = () => {
                     className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
                   >
                     <option value="Pending">Pending</option>
-                    <option value="Published">Published</option>
-                    <option value="Draft">Draft</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
                   </select>
                 </div>
                 <div>
@@ -718,8 +739,8 @@ const KidsSubmission = () => {
 
       {/* Submission Details Modal */}
       {showDetails && selectedSubmission && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+          <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-600/50 scrollbar-hide scroll-smooth">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
                 Submission Details
@@ -758,10 +779,11 @@ const KidsSubmission = () => {
               {/* Cover Image */}
               {selectedSubmission.coverImage && (
                 <div>
+                  <h4 className="text-white font-semibold mb-3">Cover Image</h4>
                   <img
                     src={selectedSubmission.coverImage}
                     alt={selectedSubmission.title}
-                    className="w-full h-64 object-cover rounded-xl"
+                    className="w-full h-64 object-contain bg-gray-800 rounded-xl"
                   />
                 </div>
               )}
@@ -770,7 +792,7 @@ const KidsSubmission = () => {
               {selectedSubmission.storyOrPoem && (
                 <div>
                   <h4 className="text-white font-semibold mb-3">
-                    {selectedSubmission.contentType === 'story' ? 'Story' : 'Poem'}
+                    {selectedSubmission.contentType === 'story' ? 'Story Content' : 'Poem Content'}
                   </h4>
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <p className="text-gray-300 whitespace-pre-wrap">{selectedSubmission.storyOrPoem}</p>
@@ -788,72 +810,191 @@ const KidsSubmission = () => {
                     className="w-full h-64 object-contain bg-gray-800 rounded-xl"
                   />
                   {selectedSubmission.drawingDescription && (
-                    <div className="mt-3 bg-gray-800/50 rounded-xl p-4">
-                      <p className="text-gray-300">{selectedSubmission.drawingDescription}</p>
+                    <div className="mt-3">
+                      <h5 className="text-white font-medium mb-2">Drawing Description</h5>
+                      <div className="bg-gray-800/50 rounded-xl p-4">
+                        <p className="text-gray-300">{selectedSubmission.drawingDescription}</p>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
 
               {/* Kid Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-white font-semibold mb-3">Kid Information</h4>
-                  <div className="bg-gray-800/50 rounded-xl p-4 space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <FiUser className="w-4 h-4 text-purple-400" />
-                      <span className="text-gray-300">{selectedSubmission.kidName}</span>
+              <div>
+                <h4 className="text-white font-semibold mb-3">Kid Information</h4>
+                <div className="bg-gray-800/50 rounded-xl p-4">
+                  <div className="flex items-start space-x-4">
+                    {/* Kid Photo */}
+                    {selectedSubmission.kidPhoto && (
+                      <div className="flex-shrink-0">
+                        <img
+                          src={selectedSubmission.kidPhoto}
+                          alt="Kid Photo"
+                          className="w-24 h-24 object-cover rounded-xl"
+                        />
+                      </div>
+                    )}
+                    {/* Kid Details */}
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <FiUser className="w-4 h-4 text-purple-400" />
+                        <span className="text-gray-300 font-medium">Name: {selectedSubmission.kidName}</span>
+                      </div>
+                      {selectedSubmission.kidAge && (
+                        <div className="text-gray-400">Age: {selectedSubmission.kidAge}</div>
+                      )}
+                      {selectedSubmission.schoolName && (
+                        <div className="text-gray-400">School: {selectedSubmission.schoolName}</div>
+                      )}
                     </div>
-                    {selectedSubmission.kidAge && (
-                      <div className="text-gray-400 text-sm">Age: {selectedSubmission.kidAge}</div>
-                    )}
-                    {selectedSubmission.schoolName && (
-                      <div className="text-gray-400 text-sm">School: {selectedSubmission.schoolName}</div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-white font-semibold mb-3">Parent Information</h4>
-                  <div className="bg-gray-800/50 rounded-xl p-4 space-y-2">
-                    <div className="text-gray-300">{selectedSubmission.parentName}</div>
-                    <div className="text-gray-400 text-sm">{selectedSubmission.phoneNo}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Kid Photo */}
-              {selectedSubmission.kidPhoto && (
-                <div>
-                  <h4 className="text-white font-semibold mb-3">Kid Photo</h4>
-                  <img
-                    src={selectedSubmission.kidPhoto}
-                    alt="Kid Photo"
-                    className="w-32 h-32 object-cover rounded-xl"
-                  />
+              {/* Parent Information */}
+              <div>
+                <h4 className="text-white font-semibold mb-3">Parent Information</h4>
+                <div className="bg-gray-800/50 rounded-xl p-4 space-y-2">
+                  <div className="text-gray-300">Name: {selectedSubmission.parentName}</div>
+                  <div className="text-gray-400">Phone: {selectedSubmission.phoneNo}</div>
                 </div>
-              )}
+              </div>
 
               {/* Additional Information */}
               {(selectedSubmission.moreTitle || selectedSubmission.moreDescription) && (
                 <div>
                   <h4 className="text-white font-semibold mb-3">Additional Information</h4>
-                  <div className="bg-gray-800/50 rounded-xl p-4 space-y-2">
+                  <div className="bg-gray-800/50 rounded-xl p-4 space-y-3">
                     {selectedSubmission.moreTitle && (
-                      <div className="text-white font-medium">{selectedSubmission.moreTitle}</div>
+                      <div>
+                        <span className="text-gray-400 text-sm">Additional Title:</span>
+                        <div className="text-white font-medium mt-1">{selectedSubmission.moreTitle}</div>
+                      </div>
                     )}
                     {selectedSubmission.moreDescription && (
-                      <div className="text-gray-300">{selectedSubmission.moreDescription}</div>
+                      <div>
+                        <span className="text-gray-400 text-sm">Additional Description:</span>
+                        <div className="text-gray-300 mt-1">{selectedSubmission.moreDescription}</div>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Timestamps */}
-              <div className="text-gray-400 text-sm">
-                <div>Created: {new Date(selectedSubmission.createdAt).toLocaleDateString()}</div>
-                <div>Updated: {new Date(selectedSubmission.updatedAt).toLocaleDateString()}</div>
+              {/* Submission Metadata */}
+              <div>
+                <h4 className="text-white font-semibold mb-3">Submission Details</h4>
+                <div className="bg-gray-800/50 rounded-xl p-4 space-y-4">
+                  <div className="text-gray-400">
+                    <span>Content Type: </span>
+                    <span className="text-purple-400 capitalize">{selectedSubmission.contentType}</span>
+                  </div>
+                  
+                  {/* Status Update Field */}
+                  <div className="flex items-center space-x-3">
+                    <span className="text-gray-400">Status:</span>
+                    <div className="flex items-center space-x-2">
+                      <CustomDropdown
+                        options={[
+                          { value: 'Pending', label: 'Pending' },
+                          { value: 'Approved', label: 'Approved' },
+                          { value: 'Rejected', label: 'Rejected' }
+                        ]}
+                        value={selectedSubmission.status}
+                        onChange={(value) => updateSubmissionStatus(selectedSubmission._id, value)}
+                        placeholder="Select status..."
+                        className="w-40"
+                        disabled={loading}
+                      />
+                      {loading && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Highlight Radio Buttons */}
+                  <div className="space-y-3">
+                    <span className="text-gray-400">Highlight:</span>
+                    <div className="flex space-x-6">
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <div className="relative">
+                          <input
+                            type="radio"
+                            name="highlight"
+                            value="Enable"
+                            checked={selectedSubmission.highlight === 'Enable'}
+                            onChange={(e) => updateSubmissionHighlight(selectedSubmission._id, e.target.value)}
+                            className="sr-only"
+                            disabled={loading}
+                          />
+                          <div className={`w-5 h-5 rounded-full border-2 transition-all duration-200 ${
+                            selectedSubmission.highlight === 'Enable' 
+                              ? 'border-yellow-500 bg-yellow-500' 
+                              : 'border-gray-600 bg-gray-800'
+                          }`}>
+                            {selectedSubmission.highlight === 'Enable' && (
+                              <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-white text-sm font-medium">Enable</span>
+                      </label>
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <div className="relative">
+                          <input
+                            type="radio"
+                            name="highlight"
+                            value="Disable"
+                            checked={selectedSubmission.highlight === 'Disable'}
+                            onChange={(e) => updateSubmissionHighlight(selectedSubmission._id, e.target.value)}
+                            className="sr-only"
+                            disabled={loading}
+                          />
+                          <div className={`w-5 h-5 rounded-full border-2 transition-all duration-200 ${
+                            selectedSubmission.highlight === 'Disable' 
+                              ? 'border-gray-500 bg-gray-500' 
+                              : 'border-gray-600 bg-gray-800'
+                          }`}>
+                            {selectedSubmission.highlight === 'Disable' && (
+                              <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-white text-sm font-medium">Disable</span>
+                      </label>
+                    </div>
+                    {loading && (
+                      <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-500"></div>
+                        <span>Updating...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <FiClock className="w-4 h-4" />
+                    <span>Created: {new Date(selectedSubmission.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <FiCheckCircle className="w-4 h-4" />
+                    <span>Updated: {new Date(selectedSubmission.updatedAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}</span>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
         </div>
