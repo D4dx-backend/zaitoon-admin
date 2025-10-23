@@ -40,12 +40,38 @@ function Dashboard() {
   
   // Ref for modal scroll position
   const modalRef = useRef(null)
+  
+  // Refs for horizontal scroll containers
+  const storiesScrollRef = useRef(null)
+  const singleStoriesScrollRef = useRef(null)
+  const videosScrollRef = useRef(null)
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
   useEffect(() => {
     fetchAllData()
   }, [])
+
+  // Handle wheel events for horizontal scrolling
+  const handleWheel = (e, scrollRef) => {
+    if (scrollRef.current) {
+      e.preventDefault()
+      scrollRef.current.scrollLeft += e.deltaY
+    }
+  }
+
+  // Handle mouse enter/leave for scroll containers
+  const handleMouseEnter = (scrollRef) => {
+    if (scrollRef.current) {
+      scrollRef.current.addEventListener('wheel', (e) => handleWheel(e, scrollRef), { passive: false })
+    }
+  }
+
+  const handleMouseLeave = (scrollRef) => {
+    if (scrollRef.current) {
+      scrollRef.current.removeEventListener('wheel', (e) => handleWheel(e, scrollRef))
+    }
+  }
 
   const fetchAllData = async () => {
     try {
@@ -349,7 +375,7 @@ function Dashboard() {
 
                   {/* Description */}
                   {currentStory.description && (
-                    <div className="mb-6">
+                    <div className="mb-3">
                       <h2 className="text-white text-lg font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Description</h2>
                       <p className="text-gray-300 text-sm leading-relaxed">
                         {currentStory.description}
@@ -359,7 +385,7 @@ function Dashboard() {
 
                   {/* Malayalam Description */}
                   {currentStory.mlDescription && (
-                    <div className="mb-6">
+                    <div className="mb-3">
                       <h2 className="text-white text-lg font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Malayalam Description</h2>
                       <p className="text-gray-300 text-sm leading-relaxed">
                         {currentStory.mlDescription}
@@ -384,7 +410,7 @@ function Dashboard() {
                   </div>
 
                   {/* Seasons & Episodes */}
-                  <div className="mb-6">
+                  <div className="mb-3">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-white text-lg font-semibold" style={{ fontFamily: 'Archivo Black' }}>
                         Seasons & Episodes
@@ -572,7 +598,7 @@ function Dashboard() {
 
                   {/* Description */}
                   {currentSingleStory.description && (
-                    <div className="mb-6">
+                    <div className="mb-3">
                       <h2 className="text-white text-lg font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Description</h2>
                       <p className="text-gray-300 text-sm leading-relaxed">
                         {currentSingleStory.description}
@@ -596,7 +622,7 @@ function Dashboard() {
                   </div>
 
                   {/* File Links */}
-                  <div className="mb-6">
+                  <div className="mb-3">
                     <h3 className="text-white text-sm font-medium mb-4 text-gray-300">Story Files</h3>
                     <div className="flex items-center space-x-6">
                       {currentSingleStory.enStoryFile ? (
@@ -714,7 +740,7 @@ function Dashboard() {
                   )}
 
                   {/* Video Details */}
-                  <div className="mb-6">
+                  <div className="mb-3">
                     <h3 className="text-white text-sm font-medium mb-4 text-gray-300">Video Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {currentVideo.category && (
@@ -801,9 +827,9 @@ function Dashboard() {
 
       {/* Main Content */}
       <div className="flex-1 ml-64 h-screen overflow-y-auto scrollbar-hide">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-2 py-6">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6">
             <div className="flex items-center justify-between">
               <div>
                 <h1 
@@ -817,8 +843,8 @@ function Dashboard() {
         </div>
 
           {/* Stories Section */}
-          <div className="mb-12">
-            <div className="mb-6">
+          <div className="mb-6">
+            <div className="mb-3">
               <h2 
                 onClick={() => navigate('/stories')}
                 className="text-2xl font-semibold text-white cursor-pointer hover:text-violet-400 transition duration-200 group flex items-center"
@@ -827,30 +853,37 @@ function Dashboard() {
                 <span className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">→</span>
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-35">
-              {stories.map((story) => (
-                <ContentCard
-                  key={story._id}
-                  item={story}
+            <div 
+              ref={storiesScrollRef}
+              className="overflow-x-auto scrollbar-hide"
+              onMouseEnter={() => handleMouseEnter(storiesScrollRef)}
+              onMouseLeave={() => handleMouseLeave(storiesScrollRef)}
+            >
+              <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
+                {stories.map((story) => (
+                  <ContentCard
+                    key={story._id}
+                    item={story}
+                    type="story"
+                    onClick={() => navigate('/stories')}
+                  />
+                ))}
+                <ViewAllCard
                   type="story"
                   onClick={() => navigate('/stories')}
                 />
-              ))}
-              <ViewAllCard
-                type="story"
-                onClick={() => navigate('/stories')}
-              />
-              {stories.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <p className="text-gray-400">No stories found</p>
-                </div>
-              )}
+                {stories.length === 0 && (
+                  <div className="flex items-center justify-center py-12 text-gray-400">
+                    <p>No stories found</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Single Stories Section */}
-          <div className="mb-12">
-            <div className="mb-6">
+          <div className="mb-6">
+            <div className="mb-3">
               <h2 
             onClick={() => navigate('/single-stories')}
                 className="text-2xl font-semibold text-white cursor-pointer hover:text-violet-400 transition duration-200 group flex items-center"
@@ -859,30 +892,37 @@ function Dashboard() {
                 <span className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">→</span>
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-35">
-              {singleStories.map((singleStory) => (
-                <ContentCard
-                  key={singleStory._id}
-                  item={singleStory}
+            <div 
+              ref={singleStoriesScrollRef}
+              className="overflow-x-auto scrollbar-hide"
+              onMouseEnter={() => handleMouseEnter(singleStoriesScrollRef)}
+              onMouseLeave={() => handleMouseLeave(singleStoriesScrollRef)}
+            >
+              <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
+                {singleStories.map((singleStory) => (
+                  <ContentCard
+                    key={singleStory._id}
+                    item={singleStory}
+                    type="singleStory"
+                    onClick={() => {}} // No navigation needed, handled by expansion
+                  />
+                ))}
+                <ViewAllCard
                   type="singleStory"
-                  onClick={() => {}} // No navigation needed, handled by expansion
+                  onClick={() => navigate('/single-stories')}
                 />
-              ))}
-              <ViewAllCard
-                type="singleStory"
-                onClick={() => navigate('/single-stories')}
-              />
-              {singleStories.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <p className="text-gray-400">No single stories found</p>
-                </div>
-              )}
+                {singleStories.length === 0 && (
+                  <div className="flex items-center justify-center py-12 text-gray-400">
+                    <p>No single stories found</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Videos Section */}
-          <div className="mb-12">
-            <div className="mb-6">
+          <div className="mb-6">
+            <div className="mb-3">
               <h2 
                 onClick={() => navigate('/videos')}
                 className="text-2xl font-semibold text-white cursor-pointer hover:text-violet-400 transition duration-200 group flex items-center"
@@ -891,24 +931,31 @@ function Dashboard() {
                 <span className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">→</span>
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-35">
-              {videos.map((video) => (
-                <ContentCard
-                  key={video._id}
-                  item={video}
+            <div 
+              ref={videosScrollRef}
+              className="overflow-x-auto scrollbar-hide"
+              onMouseEnter={() => handleMouseEnter(videosScrollRef)}
+              onMouseLeave={() => handleMouseLeave(videosScrollRef)}
+            >
+              <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
+                {videos.map((video) => (
+                  <ContentCard
+                    key={video._id}
+                    item={video}
+                    type="video"
+                    onClick={() => {}} // No navigation needed, handled by expansion
+                  />
+                ))}
+                <ViewAllCard
                   type="video"
-                  onClick={() => {}} // No navigation needed, handled by expansion
+                  onClick={() => navigate('/videos')}
                 />
-              ))}
-              <ViewAllCard
-                type="video"
-                onClick={() => navigate('/videos')}
-              />
-              {videos.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <p className="text-gray-400">No videos found</p>
-                </div>
-              )}
+                {videos.length === 0 && (
+                  <div className="flex items-center justify-center py-12 text-gray-400">
+                    <p>No videos found</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -961,7 +1008,7 @@ function Dashboard() {
               )}
 
               {/* Episode Details */}
-              <div className="mb-6">
+              <div className="mb-3">
                 <h3 className="text-white text-sm font-medium mb-4 text-gray-300">Episode Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-gray-800/50 rounded-lg p-3">
@@ -988,7 +1035,7 @@ function Dashboard() {
               </div>
 
               {/* Files Section */}
-              <div className="mb-6">
+              <div className="mb-3">
                 <h3 className="text-white text-lg font-semibold mb-4" style={{ fontFamily: 'Archivo Black' }}>Files</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedEpisode.storyFile && (
@@ -1047,7 +1094,7 @@ function Dashboard() {
               </div>
 
               {/* Banners Section */}
-              <div className="mb-6">
+              <div className="mb-3">
                 <h3 className="text-white text-lg font-semibold mb-4" style={{ fontFamily: 'Archivo Black' }}>Banners</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Ad Banner */}
