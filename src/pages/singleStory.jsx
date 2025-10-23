@@ -627,7 +627,7 @@ function SingleStoryManagement() {
             <div className="text-white text-lg">Loading stories...</div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
             {stories.map((story) => {
               const isThisCardExpanded = expandedCard === story._id
               const currentStory = expandedCard === story._id && selectedStory ? selectedStory : story
@@ -636,7 +636,7 @@ function SingleStoryManagement() {
                 <div key={story._id}>
                   {/* Story Card */}
                   <div 
-                    className={`relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 ${
+                    className={`relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 w-[180px] h-[220px] ${
                       isThisCardExpanded 
                         ? 'scale-110 z-10 shadow-2xl border-blue-500' 
                         : 'hover:scale-105 hover:shadow-2xl border-transparent hover:border-gray-600'
@@ -649,8 +649,8 @@ function SingleStoryManagement() {
                       }
                     }}
                   >
-                    {/* Cover Image */}
-                    <div className="relative aspect-[4/3] overflow-hidden">
+                    {/* Cover Image with Overlay Titles */}
+                    <div className="relative w-full h-full overflow-hidden">
                       {story.coverImage ? (
                     <img
                       src={story.coverImage}
@@ -662,18 +662,18 @@ function SingleStoryManagement() {
                           <span className="text-gray-500 text-sm">No Image</span>
                         </div>
                       )}
-                    </div>
-
-                    {/* Story Info */}
-                    <div className="p-2">
-                      <h3 className="text-white text-xs font-semibold truncate">
-                        {story.title}
-                      </h3>
-                  {story.mlTitle && (
-                        <p className="text-gray-400 text-xs truncate">
-                          {story.mlTitle}
-                        </p>
-                      )}
+                      
+                      {/* Title Overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 z-10">
+                        <h3 className="text-white text-sm font-semibold truncate mb-1">
+                          {story.title}
+                        </h3>
+                        {story.mlTitle && (
+                          <p className="text-gray-300 text-xs truncate">
+                            {story.mlTitle}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
