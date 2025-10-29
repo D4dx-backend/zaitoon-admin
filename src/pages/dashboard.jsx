@@ -16,6 +16,15 @@ import logo from '../assets/logo.png'
 import gradient from '../assets/gradiantRight.png'
 
 function Dashboard() {
+  const resolveMediaUrl = (url) => {
+    if (!url) return url
+    const trimmed = String(url).trim()
+    if (/^https?:\/\//i.test(trimmed)) return trimmed
+    if (trimmed.startsWith('//')) return `https:${trimmed}`
+    if (/^[a-z0-9.-]+\.digitaloceanspaces\.com\//i.test(trimmed)) return `https://${trimmed}`
+    if (/^[a-z0-9.-]+\.cdn\.digitaloceanspaces\.com\//i.test(trimmed)) return `https://${trimmed}`
+    return trimmed
+  }
   const navigate = useNavigate()
   const [stories, setStories] = useState([])
   const [videos, setVideos] = useState([])
@@ -287,9 +296,13 @@ function Dashboard() {
           <div className="relative w-full h-full overflow-hidden">
             {item.coverImage ? (
               <img
-                src={item.coverImage}
+                src={resolveMediaUrl(item.coverImage)}
                 alt={item.title || item.mlTitle || 'Cover'}
                 className="w-full h-full object-cover transition duration-300"
+                onError={(e) => {
+                  e.target.style.display = 'none'
+                  e.target.nextSibling && (e.target.nextSibling.style.display = 'flex')
+                }}
               />
             ) : (
               <div className="w-full h-full bg-gray-800 flex items-center justify-center p-4">
@@ -366,9 +379,10 @@ function Dashboard() {
                   {currentStory.coverImage && (
                     <div className="mb-6 flex justify-center">
                       <img
-                        src={currentStory.coverImage}
+                        src={resolveMediaUrl(currentStory.coverImage)}
                         alt={currentStory.title}
                         className="max-w-full max-h-64 object-contain rounded-xl shadow-lg"
+                        onError={(e) => { e.target.style.display = 'none' }}
                       />
                     </div>
                   )}
@@ -445,9 +459,10 @@ function Dashboard() {
                                 <div className="flex items-center space-x-3">
                                   {selectedSeason.seasonBanner && (
                                     <img
-                                      src={selectedSeason.seasonBanner}
+                                      src={resolveMediaUrl(selectedSeason.seasonBanner)}
                                       alt={`Season ${selectedSeason.seasonNumber}`}
                                       className="w-12 h-12 object-cover rounded-lg"
+                                      onError={(e) => { e.target.style.display = 'none' }}
                                     />
                                   )}
                                   <div>
@@ -469,9 +484,10 @@ function Dashboard() {
                                         <div className="flex items-center space-x-3">
                                           {episode.coverImage && (
                                             <img
-                                              src={episode.coverImage}
+                                              src={resolveMediaUrl(episode.coverImage)}
                                               alt={episode.title}
                                               className="w-10 h-10 object-cover rounded-lg"
+                                              onError={(e) => { e.target.style.display = 'none' }}
                                             />
                                           )}
                                           <div>
@@ -589,9 +605,10 @@ function Dashboard() {
                   {currentSingleStory.coverImage && (
                     <div className="mb-6 flex justify-center">
                       <img
-                        src={currentSingleStory.coverImage}
+                        src={resolveMediaUrl(currentSingleStory.coverImage)}
                         alt={currentSingleStory.title}
                         className="max-w-full max-h-64 object-contain rounded-xl shadow-lg"
+                        onError={(e) => { e.target.style.display = 'none' }}
                       />
                     </div>
                   )}
@@ -730,7 +747,7 @@ function Dashboard() {
                   {currentVideo.video && (
                     <div className="mb-6 flex justify-center">
                       <video
-                        src={currentVideo.video}
+                        src={resolveMediaUrl(currentVideo.video)}
                         controls
                         className="max-w-full max-h-96 rounded-xl shadow-lg"
                       >
@@ -749,9 +766,10 @@ function Dashboard() {
                           <div className="flex items-center space-x-3">
                             {currentVideo.category.image && (
                               <img
-                                src={currentVideo.category.image}
+                                src={resolveMediaUrl(currentVideo.category.image)}
                                 alt={currentVideo.category.title}
                                 className="w-8 h-8 object-cover rounded-lg"
+                                onError={(e) => { e.target.style.display = 'none' }}
                               />
                             )}
                             <span className="text-white text-sm">{currentVideo.category.title}</span>
@@ -860,7 +878,7 @@ function Dashboard() {
               onMouseLeave={() => handleMouseLeave(storiesScrollRef)}
             >
               <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
-                {stories.map((story) => (
+                {stories.slice(0, 8).map((story) => (
                   <ContentCard
                     key={story._id}
                     item={story}
@@ -899,7 +917,7 @@ function Dashboard() {
               onMouseLeave={() => handleMouseLeave(singleStoriesScrollRef)}
             >
               <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
-                {singleStories.map((singleStory) => (
+                {singleStories.slice(0, 8).map((singleStory) => (
                   <ContentCard
                     key={singleStory._id}
                     item={singleStory}
@@ -938,7 +956,7 @@ function Dashboard() {
               onMouseLeave={() => handleMouseLeave(videosScrollRef)}
             >
               <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
-                {videos.map((video) => (
+                {videos.slice(0, 8).map((video) => (
                   <ContentCard
                     key={video._id}
                     item={video}
@@ -1000,9 +1018,10 @@ function Dashboard() {
               {selectedEpisode.coverImage && (
                 <div className="mb-6 flex justify-center">
                   <img
-                    src={selectedEpisode.coverImage}
+                    src={resolveMediaUrl(selectedEpisode.coverImage)}
                     alt={selectedEpisode.title}
                     className="max-w-full max-h-64 object-contain rounded-xl shadow-lg"
+                    onError={(e) => { e.target.style.display = 'none' }}
                   />
                 </div>
               )}

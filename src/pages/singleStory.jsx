@@ -9,6 +9,15 @@ import logo from '../assets/logo.png'
 import gradient from '../assets/gradiantRight.png'
 
 function SingleStoryManagement() {
+  const resolveImageUrl = (url) => {
+    if (!url) return url
+    const trimmed = String(url).trim()
+    if (/^https?:\/\//i.test(trimmed)) return trimmed
+    if (trimmed.startsWith('//')) return `https:${trimmed}`
+    if (/^[a-z0-9.-]+\.digitaloceanspaces\.com\//i.test(trimmed)) return `https://${trimmed}`
+    if (/^[a-z0-9.-]+\.cdn\.digitaloceanspaces\.com\//i.test(trimmed)) return `https://${trimmed}`
+    return trimmed
+  }
   const navigate = useNavigate()
   const [stories, setStories] = useState([])
   const [loading, setLoading] = useState(false)
@@ -446,7 +455,7 @@ function SingleStoryManagement() {
                     <div className="mb-3">
                       <p className="text-gray-400 text-sm mb-2">Current image:</p>
                       <img 
-                        src={editingStory.coverImage} 
+                        src={resolveImageUrl(editingStory.coverImage)} 
                         alt="Current cover" 
                         className="w-20 h-20 object-cover rounded-lg"
                         onError={(e) => {
@@ -661,7 +670,7 @@ function SingleStoryManagement() {
                     <div className="relative w-full h-full overflow-hidden">
                       {story.coverImage ? (
                     <img
-                      src={story.coverImage}
+                      src={resolveImageUrl(story.coverImage)}
                       alt={story.title}
                           className="w-full h-full object-cover transition duration-300"
                           onError={(e) => {
@@ -744,7 +753,7 @@ function SingleStoryManagement() {
                             {currentStory.coverImage && (
                               <div className="mb-6 flex justify-center">
                                 <img
-                                  src={currentStory.coverImage}
+                                  src={resolveImageUrl(currentStory.coverImage)}
                                   alt={currentStory.title}
                                   className="max-w-full max-h-64 object-contain rounded-xl shadow-lg"
                                   onError={(e) => {
