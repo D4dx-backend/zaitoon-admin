@@ -37,8 +37,6 @@ function Videos() {
   const [videoForm, setVideoForm] = useState({
     title: '',
     category: '',
-    video: '',
-    videoType: 'file', // 'file' or 'link'
     videoLink: ''
   })
   
@@ -47,9 +45,6 @@ function Videos() {
     image: ''
   })
 
-  // File upload states
-  const [fileInputs, setFileInputs] = useState({})
-  const [selectedFileName, setSelectedFileName] = useState('')
 
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -108,19 +103,8 @@ function Videos() {
       const formData = new FormData()
       formData.append('title', videoForm.title)
       formData.append('category', videoForm.category)
-      formData.append('videoType', videoForm.videoType)
-      
-      if (videoForm.videoType === 'file') {
-        // Handle video file upload
-        if (fileInputs.video && fileInputs.video.files[0]) {
-          formData.append('video', fileInputs.video.files[0])
-        } else if (videoForm.video) {
-          formData.append('video', videoForm.video)
-        }
-      } else {
-        // Handle video link
-        formData.append('video', videoForm.videoLink)
-      }
+      formData.append('videoType', 'link')
+      formData.append('video', videoForm.videoLink)
       
       const response = await fetch(`${API_BASE}/videos`, {
         method: 'POST',
@@ -155,19 +139,8 @@ function Videos() {
       const formData = new FormData()
       formData.append('title', videoForm.title)
       formData.append('category', videoForm.category)
-      formData.append('videoType', videoForm.videoType)
-      
-      if (videoForm.videoType === 'file') {
-        // Handle video file upload
-        if (fileInputs.video && fileInputs.video.files[0]) {
-          formData.append('video', fileInputs.video.files[0])
-        } else if (videoForm.video) {
-          formData.append('video', videoForm.video)
-        }
-      } else {
-        // Handle video link
-        formData.append('video', videoForm.videoLink)
-      }
+      formData.append('videoType', 'link')
+      formData.append('video', videoForm.videoLink)
       
       const response = await fetch(`${API_BASE}/videos/${editingVideo._id}`, {
         method: 'PUT',
@@ -328,14 +301,10 @@ function Videos() {
     setVideoForm({
       title: '',
       category: '',
-      video: '',
-      videoType: 'file',
       videoLink: ''
     })
     setEditingVideo(null)
     setShowVideoForm(false)
-    setFileInputs(prev => ({ ...prev, video: null }))
-    setSelectedFileName('')
   }
 
   const resetCategoryForm = () => {
@@ -345,7 +314,6 @@ function Videos() {
     })
     setEditingCategory(null)
     setShowCategoryForm(false)
-    setFileInputs(prev => ({ ...prev, image: null }))
   }
 
   // Fetch single video details
@@ -381,11 +349,8 @@ function Videos() {
     setVideoForm({
       title: video.title || '',
       category: video.category?._id || '',
-      video: video.video || '',
-      videoType: video.videoLink ? 'link' : 'file',
-      videoLink: video.videoLink || ''
+      videoLink: video.videoLink || video.video || ''
     })
-    setSelectedFileName(video.video ? video.video.split('/').pop() : '')
     setExpandedCard(null)
     setSelectedVideo(null)
     setShowVideoForm(true)
@@ -970,119 +935,32 @@ function Videos() {
                   />
                 </div>
 
-                {/* Video Type Toggle */}
-                <div>
-                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Video Type *</label>
-                  <div className="flex space-x-6 mb-4">
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <div className="relative">
-                        <input
-                          type="radio"
-                          name="videoType"
-                          value="file"
-                          checked={videoForm.videoType === 'file'}
-                          onChange={(e) => setVideoForm({ ...videoForm, videoType: e.target.value })}
-                          className="sr-only"
-                        />
-                        <div className={`w-5 h-5 rounded-full border-2 transition-all duration-200 ${
-                          videoForm.videoType === 'file' 
-                            ? 'border-purple-500 bg-purple-500' 
-                            : 'border-gray-600 bg-gray-800'
-                        }`}>
-                          {videoForm.videoType === 'file' && (
-                            <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-white text-sm font-medium">Upload File</span>
-                    </label>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <div className="relative">
-                        <input
-                          type="radio"
-                          name="videoType"
-                          value="link"
-                          checked={videoForm.videoType === 'link'}
-                          onChange={(e) => setVideoForm({ ...videoForm, videoType: e.target.value })}
-                          className="sr-only"
-                        />
-                        <div className={`w-5 h-5 rounded-full border-2 transition-all duration-200 ${
-                          videoForm.videoType === 'link' 
-                            ? 'border-purple-500 bg-purple-500' 
-                            : 'border-gray-600 bg-gray-800'
-                        }`}>
-                          {videoForm.videoType === 'link' && (
-                            <div className="w-2 h-2 bg-white rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-white text-sm font-medium">Video Link</span>
-                    </label>
-                  </div>
-                </div>
 
-                {/* Video Input - File or Link */}
+                {/* Video Link Input */}
                 <div>
-                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Video *</label>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Video Link *</label>
                   
-                  {videoForm.videoType === 'file' ? (
-                    <>
-                      {editingVideo && editingVideo.video && (
-                        <div className="mb-3">
-                          <p className="text-gray-400 text-sm mb-2">Current video:</p>
-                          <video
-                            src={editingVideo.video}
-                            className="w-32 h-20 object-cover rounded-lg"
-                            muted
-                          />
-                        </div>
-                      )}
-                       <div className="relative w-full h-12 bg-gray-800/50 border border-gray-600 rounded-2xl overflow-hidden">
-                         <input
-                           type="file"
-                           accept="video/*"
-                           onChange={(e) => {
-                             setFileInputs({ ...fileInputs, video: e.target })
-                             setSelectedFileName(e.target.files[0]?.name || '')
-                           }}
-                           required={!editingVideo && videoForm.videoType === 'file'}
-                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                         />
-                         <div className="flex items-center h-full px-4">
-                           <div className="mr-4 py-2 px-4 bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold rounded-xl transition duration-200">
-                             Choose File
-                           </div>
-                           <span className="text-gray-400 text-sm">
-                             {selectedFileName || 'No file chosen'}
-                           </span>
-                         </div>
-                       </div>
-                    </>
-                  ) : (
-                    <>
-                      {editingVideo && editingVideo.videoLink && (
-                        <div className="mb-3">
-                          <p className="text-gray-400 text-sm mb-2">Current video link:</p>
-                          <a 
-                            href={editingVideo.videoLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-purple-400 hover:text-purple-300 text-sm underline"
-                          >
-                            {editingVideo.videoLink}
-                          </a>
-                        </div>
-                      )}
-                      <input
-                        type="url"
-                        value={videoForm.videoLink}
-                        onChange={(e) => setVideoForm({ ...videoForm, videoLink: e.target.value })}
-                        placeholder="Enter video URL (YouTube, Vimeo, etc.)"
-                        required={!editingVideo && videoForm.videoType === 'link'}
-                        className="w-full h-12 px-4 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400"
-                      />
-                    </>
+                  {editingVideo && (editingVideo.videoLink || editingVideo.video) && (
+                    <div className="mb-3">
+                      <p className="text-gray-400 text-sm mb-2">Current video link:</p>
+                      <a 
+                        href={editingVideo.videoLink || editingVideo.video} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-purple-400 hover:text-purple-300 text-sm underline"
+                      >
+                        {editingVideo.videoLink || editingVideo.video}
+                      </a>
+                    </div>
                   )}
+                  <input
+                    type="url"
+                    value={videoForm.videoLink}
+                    onChange={(e) => setVideoForm({ ...videoForm, videoLink: e.target.value })}
+                    placeholder="Enter video URL (YouTube, Vimeo, etc.)"
+                    required
+                    className="w-full h-12 px-4 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400"
+                  />
                 </div>
 
                 {/* Submit Buttons */}
