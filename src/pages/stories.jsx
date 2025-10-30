@@ -1352,6 +1352,61 @@ function Stories() {
                   />
                 </div>
 
+                {/* Priority (optional) */}
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Priority</label>
+                  <input
+                    type="text"
+                    value={storyForm.priority}
+                    onChange={(e) => setStoryForm({ ...storyForm, priority: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  />
+                </div>
+
+                {/* Hindi Title (optional) */}
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Hindi Title</label>
+                  <input
+                    type="text"
+                    value={storyForm.hinTitle}
+                    onChange={(e) => setStoryForm({ ...storyForm, hinTitle: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  />
+                </div>
+
+                {/* Hindi Description (optional) */}
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Hindi Description</label>
+                  <textarea
+                    value={storyForm.hinDescription}
+                    onChange={(e) => setStoryForm({ ...storyForm, hinDescription: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 resize-none scrollbar-hide scroll-smooth"
+                  />
+                </div>
+
+                {/* Urdu Title (optional) */}
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Urdu Title</label>
+                  <input
+                    type="text"
+                    value={storyForm.urTiitle}
+                    onChange={(e) => setStoryForm({ ...storyForm, urTiitle: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                  />
+                </div>
+
+                {/* Urdu Description (optional) */}
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Urdu Description</label>
+                  <textarea
+                    value={storyForm.urDescription}
+                    onChange={(e) => setStoryForm({ ...storyForm, urDescription: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 resize-none scrollbar-hide scroll-smooth"
+                  />
+                </div>
+
                 {/* Status */}
                 <div>
                   <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Status</label>
