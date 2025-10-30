@@ -293,7 +293,11 @@ function Stories() {
         showModal('success', 'Season created successfully!')
         resetSeasonForm()
         setShowSeasonForm(false) // Close the season form
+        // Refresh stories list and currently expanded story details
         fetchStories()
+        if (expandedCard) {
+          fetchStoryDetails(expandedCard)
+        }
       } else {
         showModal('error', data.message || 'Failed to create season')
       }
@@ -342,7 +346,11 @@ function Stories() {
         showModal('success', 'Episode created successfully!')
         resetEpisodeForm()
         setShowEpisodeForm(false) // Close the episode form
+        // Refresh stories list and currently expanded story details
         fetchStories()
+        if (expandedCard) {
+          fetchStoryDetails(expandedCard)
+        }
       } else {
         showModal('error', data.message || 'Failed to create episode')
       }
