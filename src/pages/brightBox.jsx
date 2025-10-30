@@ -101,6 +101,25 @@ const BrightBox = () => {
     }
   }
 
+  const normalizeUrl = (url) => {
+    if (!url) return ''
+    // If starts with //, prefix https:
+    if (url.startsWith('//')) return `https:${url}`
+    // If missing protocol but looks like domain/path, prefix https://
+    if (!/^https?:\/\//i.test(url)) return `https://${url.replace(/^\//, '')}`
+    return url
+  }
+
+  const openFileInNewTab = (url) => {
+    if (!url) return
+    try {
+      const absoluteUrl = normalizeUrl(url)
+      window.open(absoluteUrl, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      console.error('Failed to open file:', err)
+    }
+  }
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -1356,7 +1375,13 @@ const BrightBox = () => {
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {expandedStory.enFile && (
-                    <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div
+                      className="bg-gray-800/50 rounded-lg p-3 text-center cursor-pointer hover:bg-gray-800/70 transition"
+                      onClick={() => openFileInNewTab(expandedStory.enFile)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && openFileInNewTab(expandedStory.enFile)}
+                    >
                       <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
                         <FiFile className="w-5 h-5 text-blue-400" />
                       </div>
@@ -1364,7 +1389,13 @@ const BrightBox = () => {
                     </div>
                   )}
                   {expandedStory.mlFile && (
-                    <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div
+                      className="bg-gray-800/50 rounded-lg p-3 text-center cursor-pointer hover:bg-gray-800/70 transition"
+                      onClick={() => openFileInNewTab(expandedStory.mlFile)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && openFileInNewTab(expandedStory.mlFile)}
+                    >
                       <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
                         <FiFile className="w-5 h-5 text-green-400" />
                       </div>
@@ -1372,7 +1403,13 @@ const BrightBox = () => {
                     </div>
                   )}
                   {expandedStory.urFile && (
-                    <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div
+                      className="bg-gray-800/50 rounded-lg p-3 text-center cursor-pointer hover:bg-gray-800/70 transition"
+                      onClick={() => openFileInNewTab(expandedStory.urFile)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && openFileInNewTab(expandedStory.urFile)}
+                    >
                       <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
                         <FiFile className="w-5 h-5 text-purple-400" />
                       </div>
@@ -1380,7 +1417,13 @@ const BrightBox = () => {
                     </div>
                   )}
                   {expandedStory.hinFile && (
-                    <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                    <div
+                      className="bg-gray-800/50 rounded-lg p-3 text-center cursor-pointer hover:bg-gray-800/70 transition"
+                      onClick={() => openFileInNewTab(expandedStory.hinFile)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && openFileInNewTab(expandedStory.hinFile)}
+                    >
                       <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
                         <FiFile className="w-5 h-5 text-orange-400" />
                       </div>
@@ -2269,7 +2312,7 @@ const BrightBox = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {selectedBrightBoxStory.enFile && (
                     <a
-                      href={selectedBrightBoxStory.enFile}
+                      href={normalizeUrl(selectedBrightBoxStory.enFile)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
@@ -2280,7 +2323,7 @@ const BrightBox = () => {
                   )}
                   {selectedBrightBoxStory.mlFile && (
                     <a
-                      href={selectedBrightBoxStory.mlFile}
+                      href={normalizeUrl(selectedBrightBoxStory.mlFile)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
@@ -2291,7 +2334,7 @@ const BrightBox = () => {
                   )}
                   {selectedBrightBoxStory.urFile && (
                     <a
-                      href={selectedBrightBoxStory.urFile}
+                      href={normalizeUrl(selectedBrightBoxStory.urFile)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
@@ -2302,7 +2345,7 @@ const BrightBox = () => {
                   )}
                   {selectedBrightBoxStory.hinFile && (
                     <a
-                      href={selectedBrightBoxStory.hinFile}
+                      href={normalizeUrl(selectedBrightBoxStory.hinFile)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
