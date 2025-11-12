@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Sidebar from '../components/Sidebar'
@@ -9,9 +9,33 @@ import logo from '../assets/logo.png'
 import gradient from '../assets/gradiantRight.png'
 
 function SingleStoryManagement() {
+  const SPACES_CDN_DOMAIN = import.meta.env.VITE_SPACES_CDN_DOMAIN
+
+  const normalizeSpacesUrl = (input) => {
+    if (!input) return input
+
+    const pathStyleMatch = input.match(/^https?:\/\/([a-z0-9-]+)\.digitaloceanspaces\.com\/([a-z0-9-]+)\/(.+)$/i)
+    if (pathStyleMatch) {
+      const [, region, space, key] = pathStyleMatch
+      if (SPACES_CDN_DOMAIN) {
+        return `https://${SPACES_CDN_DOMAIN}/${key}`
+      }
+      return `https://${space}.${region}.digitaloceanspaces.com/${key}`
+    }
+
+    if (SPACES_CDN_DOMAIN) {
+      const cdnMissingProtocol = input.match(new RegExp(`^${SPACES_CDN_DOMAIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/(.+)$`, 'i'))
+      if (cdnMissingProtocol) {
+        return `https://${SPACES_CDN_DOMAIN}/${cdnMissingProtocol[1]}`
+      }
+    }
+
+    return input
+  }
+
   const resolveImageUrl = (url) => {
     if (!url) return url
-    const trimmed = String(url).trim()
+    const trimmed = normalizeSpacesUrl(String(url).trim())
     if (/^https?:\/\//i.test(trimmed)) return trimmed
     if (trimmed.startsWith('//')) return `https:${trimmed}`
     if (/^[a-z0-9.-]+\.digitaloceanspaces\.com\//i.test(trimmed)) return `https://${trimmed}`
@@ -48,6 +72,10 @@ function SingleStoryManagement() {
   })
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  const STORIES_PER_PAGE = 18
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalStories, setTotalStories] = useState(0)
   
   // Debug logging
 
@@ -60,19 +88,31 @@ function SingleStoryManagement() {
     }
   }
 
-  // Fetch all stories
-  const fetchStories = async () => {
+  // Fetch stories with pagination
+  const fetchStories = useCallback(async (page = 1) => {
     try {
       setLoading(true)
-      const response = await axios.get(`${API_BASE_URL}/single-stories`)
-      setStories(response.data.data)
+      setError('')
+      const response = await axios.get(`${API_BASE_URL}/single-stories`, {
+        params: { page, limit: STORIES_PER_PAGE }
+      })
+      const responseData = response.data || {}
+      const total = responseData.total || 0
+      const meta = responseData.meta || {}
+      const safeTotalPages = meta.totalPages || 1
+      setStories(responseData.data || [])
+      setTotalStories(total)
+      setTotalPages(safeTotalPages)
+      if (total > 0 && page > safeTotalPages) {
+        setCurrentPage(safeTotalPages)
+      }
     } catch (err) {
       setError('Failed to fetch stories')
       console.error('Fetch error:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [API_BASE_URL, STORIES_PER_PAGE])
 
   // Fetch single story details
   const fetchStoryDetails = async (storyId) => {
@@ -150,7 +190,11 @@ function SingleStoryManagement() {
       setStatusMessage('Story created successfully!')
       setShowForm(false)
       resetForm()
-      fetchStories()
+      if (currentPage !== 1) {
+        setCurrentPage(1)
+      } else {
+        fetchStories(1)
+      }
     } catch (err) {
       // Show error modal
       setStatusModalType('error')
@@ -197,7 +241,7 @@ function SingleStoryManagement() {
       setShowForm(false)
       setEditingStory(null)
       resetForm()
-      fetchStories()
+      fetchStories(currentPage)
     } catch (err) {
       // Show error modal
       setStatusModalType('error')
@@ -238,7 +282,13 @@ function SingleStoryManagement() {
       setExpandedCard(null)
       setSelectedStory(null)
       setDeleteStoryId(null)
-      fetchStories()
+      const shouldGoToPrevPage = stories.length === 1 && currentPage > 1
+      const targetPage = shouldGoToPrevPage ? currentPage - 1 : currentPage
+      if (targetPage !== currentPage) {
+        setCurrentPage(targetPage)
+      } else {
+        fetchStories(targetPage)
+      }
     } catch (err) {
       // Show error modal
       setStatusModalType('error')
@@ -253,6 +303,14 @@ function SingleStoryManagement() {
   const cancelDelete = () => {
     setDeleteStoryId(null)
   }
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return
+    setCurrentPage(newPage)
+  }
+
+  const startIndex = totalStories === 0 ? 0 : Math.min((currentPage - 1) * STORIES_PER_PAGE + 1, totalStories)
+  const endIndex = Math.min(totalStories, currentPage * STORIES_PER_PAGE)
 
   // Edit story (for expandable card)
   const handleEdit = (story) => {
@@ -304,8 +362,8 @@ function SingleStoryManagement() {
   }
 
   useEffect(() => {
-    fetchStories()
-  }, [])
+    fetchStories(currentPage)
+  }, [currentPage, fetchStories])
 
   return (
     <div className="min-h-screen bg-black flex">
@@ -884,6 +942,33 @@ function SingleStoryManagement() {
               </div>
               )
             })}
+          </div>
+        )}
+
+        {totalStories > 0 && (
+          <div className="flex flex-col items-center justify-center gap-3 mt-8 text-sm text-gray-300 text-center">
+            <div className="text-center">
+              Showing {startIndex}-{endIndex} of {totalStories} stories
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg border border-gray-600 text-white hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Previous
+              </button>
+              <span className="text-gray-400">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg border border-gray-600 text-white hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
 
