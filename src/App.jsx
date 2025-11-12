@@ -6,6 +6,7 @@ import SingleStory from './pages/singleStory'
 import Stories from './pages/stories'
 import Videos from './pages/videos'
 import KidsSubmission from './pages/kidsSubmission'
+import Support from './pages/support'
 import BrightBox from './pages/brightBox'
 
 function App() {
@@ -115,6 +116,7 @@ function App() {
             <Navigate to="/login" replace />
           } 
         />
+        <Route path="/support" element={<Support />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

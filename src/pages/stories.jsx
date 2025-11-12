@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import SuccessModal from '../components/SuccessModal'
@@ -92,26 +92,43 @@ function Stories() {
 
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL
+  const STORIES_PER_PAGE = 18
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalStories, setTotalStories] = useState(0)
   
   // Debug logging
 
-  // Fetch stories
-  const fetchStories = async () => {
+  // Fetch stories with pagination
+  const fetchStories = useCallback(async (page = 1) => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/stories`)
+      const response = await fetch(`${API_BASE}/stories?page=${page}&limit=${STORIES_PER_PAGE}`)
       const data = await response.json()
       if (data.success) {
-        setStories(data.data.stories)
+        const storiesList = data.data?.stories || []
+        const pagination = data.data?.pagination || {}
+        const total = pagination.totalStories || 0
+        const safeTotalPages = pagination.totalPages || Math.max(1, Math.ceil(total / STORIES_PER_PAGE))
+
+        setStories(storiesList)
+        setTotalStories(total)
+        setTotalPages(safeTotalPages)
+
+        if (total > 0 && page > safeTotalPages) {
+          setCurrentPage(safeTotalPages)
+        } else if (total === 0 && page !== 1) {
+          setCurrentPage(1)
+        }
       } else {
-        showModal('error', 'Failed to fetch stories')
+        showModal('error', data.message || 'Failed to fetch stories')
       }
     } catch (error) {
       showModal('error', 'Error fetching stories')
     } finally {
       setLoading(false)
     }
-  }
+  }, [API_BASE, STORIES_PER_PAGE])
 
   // Show modal
   const showModal = (type, message, onConfirm = null) => {
@@ -186,7 +203,11 @@ function Stories() {
         showModal('success', 'Story created successfully!')
         resetStoryForm()
         setShowStoryForm(false) // Close the story form
-        fetchStories()
+        if (currentPage !== 1) {
+          setCurrentPage(1)
+        } else {
+          fetchStories(1)
+        }
       } else {
         showModal('error', data.message || 'Failed to create story')
       }
@@ -228,7 +249,7 @@ function Stories() {
         showModal('success', 'Story updated successfully!')
         resetStoryForm()
         setShowStoryForm(false) // Close the story form
-        fetchStories()
+        fetchStories(currentPage)
       } else {
         showModal('error', data.message || 'Failed to update story')
       }
@@ -253,7 +274,13 @@ function Stories() {
       const data = await response.json()
       if (data.success) {
         showModal('success', 'Story deleted successfully!')
-        fetchStories()
+        const shouldGoToPrevPage = stories.length === 1 && currentPage > 1
+        const targetPage = shouldGoToPrevPage ? currentPage - 1 : currentPage
+        if (targetPage !== currentPage) {
+          setCurrentPage(targetPage)
+        } else {
+          fetchStories(targetPage)
+        }
       } else {
         showModal('error', data.message || 'Failed to delete story')
       }
@@ -293,7 +320,7 @@ function Stories() {
         showModal('success', 'Season created successfully!')
         resetSeasonForm()
         setShowSeasonForm(false) // Close the season form
-        fetchStories()
+        fetchStories(currentPage)
       } else {
         showModal('error', data.message || 'Failed to create season')
       }
@@ -342,7 +369,7 @@ function Stories() {
         showModal('success', 'Episode created successfully!')
         resetEpisodeForm()
         setShowEpisodeForm(false) // Close the episode form
-        fetchStories()
+        fetchStories(currentPage)
       } else {
         showModal('error', data.message || 'Failed to create episode')
       }
@@ -418,6 +445,14 @@ function Stories() {
       hinBanner: null
     })
   }
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return
+    setCurrentPage(newPage)
+  }
+
+  const startIndex = totalStories === 0 ? 0 : Math.min((currentPage - 1) * STORIES_PER_PAGE + 1, totalStories)
+  const endIndex = Math.min(totalStories, currentPage * STORIES_PER_PAGE)
 
   // Fetch single story details
   const fetchStoryDetails = async (storyId) => {
@@ -725,8 +760,8 @@ function Stories() {
 
   // Load data on component mount
   useEffect(() => {
-    fetchStories()
-  }, [])
+    fetchStories(currentPage)
+  }, [currentPage, fetchStories])
 
   return (
     <div className="min-h-screen bg-black flex">
@@ -1256,6 +1291,35 @@ function Stories() {
             </div>
           )}
       </div>
+
+        {totalStories > 0 && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+            <div className="flex flex-col items-center justify-center gap-3 text-sm text-gray-300 text-center">
+              <div className="text-center">
+                Showing {startIndex}-{endIndex} of {totalStories} stories
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-lg border border-gray-600 text-white hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  Previous
+                </button>
+                <span className="text-gray-400">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded-lg border border-gray-600 text-white hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Story Form Modal */}
         {showStoryForm && (
