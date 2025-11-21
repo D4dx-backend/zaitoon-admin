@@ -6,6 +6,7 @@ import {
   DocumentTextIcon, 
   VideoCameraIcon, 
   UserGroupIcon,
+  PuzzlePieceIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon
 } from '@heroicons/react/24/outline'
@@ -111,6 +112,14 @@ function Sidebar() {
           >
             <BookOpenIcon className={`w-5 h-5 ${isActive('/bright-box') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
             <span className="text-sm font-medium">Bright Box</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/puzzles')}
+            className={getButtonClasses('/puzzles')}
+          >
+            <PuzzlePieceIcon className={`w-5 h-5 ${isActive('/puzzles') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+            <span className="text-sm font-medium">Puzzles</span>
           </button>
         </nav>
 

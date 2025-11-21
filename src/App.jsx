@@ -8,6 +8,7 @@ import Videos from './pages/videos'
 import KidsSubmission from './pages/kidsSubmission'
 import Support from './pages/support'
 import BrightBox from './pages/brightBox'
+import Puzzles from './pages/puzzles'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -113,6 +114,14 @@ function App() {
           element={
             isAuthenticated ? 
             <BrightBox /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/puzzles" 
+          element={
+            isAuthenticated ? 
+            <Puzzles /> : 
             <Navigate to="/login" replace />
           } 
         />
