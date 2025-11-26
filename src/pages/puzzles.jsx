@@ -413,7 +413,7 @@ function Puzzles() {
                     {editingPuzzle ? 'Edit Puzzle' : 'Add New Puzzle'}
                   </h2>
                   <p className="text-gray-400 mt-1 text-xs flex items-center">
-                    <FiAlertCircle className="mr-1" /> Provide all translations to keep the puzzle consistent across languages.
+                    <FiAlertCircle className="mr-1" /> English copy is required; other translations are optional but recommended.
                   </p>
                 </div>
                 <button
@@ -551,49 +551,52 @@ function Puzzles() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {['en', 'ml', 'hi', 'ur'].map((lang) => (
-                    <div key={lang} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-white text-sm font-semibold uppercase" style={{ fontFamily: 'Archivo Black' }}>
-                          {lang}
-                        </h3>
-                        <span className="text-xs text-gray-400 uppercase">Required</span>
-                      </div>
+                  {['en', 'ml', 'hi', 'ur'].map((lang) => {
+                    const isRequired = lang === 'en'
+                    return (
+                      <div key={lang} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-white text-sm font-semibold uppercase" style={{ fontFamily: 'Archivo Black' }}>
+                            {lang}
+                          </h3>
+                          <span className="text-xs text-gray-400 uppercase">{isRequired ? 'Required' : 'Optional'}</span>
+                        </div>
 
-                      <div>
-                        <label className="block text-white text-xs font-semibold mb-1.5">Title</label>
-                        <input
-                          type="text"
-                          value={formData.translations[lang].title}
-                          onChange={(e) => updateTranslationField(lang, 'title', e.target.value)}
-                          required
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-                        />
-                      </div>
+                        <div>
+                          <label className="block text-white text-xs font-semibold mb-1.5">Title</label>
+                          <input
+                            type="text"
+                            value={formData.translations[lang].title}
+                            onChange={(e) => updateTranslationField(lang, 'title', e.target.value)}
+                            required={isRequired}
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                          />
+                        </div>
 
-                      <div>
-                        <label className="block text-white text-xs font-semibold mb-1.5">Description</label>
-                        <textarea
-                          value={formData.translations[lang].description}
-                          onChange={(e) => updateTranslationField(lang, 'description', e.target.value)}
-                          required
-                          rows={2}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 resize-none"
-                        />
-                      </div>
+                        <div>
+                          <label className="block text-white text-xs font-semibold mb-1.5">Description</label>
+                          <textarea
+                            value={formData.translations[lang].description}
+                            onChange={(e) => updateTranslationField(lang, 'description', e.target.value)}
+                            required={isRequired}
+                            rows={2}
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 resize-none"
+                          />
+                        </div>
 
-                      <div>
-                        <label className="block text-white text-xs font-semibold mb-1.5">Explanation</label>
-                        <textarea
-                          value={formData.translations[lang].explanation}
-                          onChange={(e) => updateTranslationField(lang, 'explanation', e.target.value)}
-                          required
-                          rows={3}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 resize-none"
-                        />
+                        <div>
+                          <label className="block text-white text-xs font-semibold mb-1.5">Explanation</label>
+                          <textarea
+                            value={formData.translations[lang].explanation}
+                            onChange={(e) => updateTranslationField(lang, 'explanation', e.target.value)}
+                            required={isRequired}
+                            rows={3}
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 resize-none"
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4 border-t border-white/10">
