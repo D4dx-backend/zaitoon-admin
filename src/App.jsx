@@ -9,6 +9,7 @@ import KidsSubmission from './pages/kidsSubmission'
 import Support from './pages/support'
 import BrightBox from './pages/brightBox'
 import Puzzles from './pages/puzzles'
+import Banners from './pages/banners'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -122,6 +123,14 @@ function App() {
           element={
             isAuthenticated ? 
             <Puzzles /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/banners" 
+          element={
+            isAuthenticated ? 
+            <Banners /> : 
             <Navigate to="/login" replace />
           } 
         />

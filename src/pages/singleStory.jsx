@@ -68,7 +68,8 @@ function SingleStoryManagement() {
     enStoryFile: null,
     mlStoryFile: null,
     mlBanner: null,
-    enBanner: null
+    enBanner: null,
+    music: null
   })
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -328,7 +329,8 @@ function SingleStoryManagement() {
       enStoryFile: null,
       mlStoryFile: null,
       mlBanner: null,
-      enBanner: null
+      enBanner: null,
+      music: null
     })
     setExpandedCard(null) // Close the expanded card
     setSelectedStory(null)
@@ -350,7 +352,8 @@ function SingleStoryManagement() {
       enStoryFile: null,
       mlStoryFile: null,
       mlBanner: null,
-      enBanner: null
+      enBanner: null,
+      music: null
     })
   }
 
@@ -605,6 +608,40 @@ function SingleStoryManagement() {
                     accept="image/*"
                     className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Music (MP3)</label>
+                  {editingStory && editingStory.music && (
+                    <div className="mb-3">
+                      <p className="text-gray-400 text-sm mb-2">Current music:</p>
+                      <audio 
+                        controls 
+                        className="w-full mb-2"
+                        src={editingStory.music}
+                      >
+                        Your browser does not support the audio element.
+                      </audio>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          window.open(editingStory.music, '_blank', 'noopener,noreferrer')
+                        }}
+                        className="text-purple-400 hover:text-purple-300 text-sm underline"
+                      >
+                        Open music file
+                      </button>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    name="music"
+                    onChange={handleFileChange}
+                    accept="audio/mpeg,audio/mp3,.mp3"
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600"
+                  />
+                  <p className="text-gray-400 text-xs mt-2">Only MP3 format is supported</p>
                 </div>
 
                 {/* Highlight Checkbox */}
@@ -893,6 +930,32 @@ function SingleStoryManagement() {
                                 )}
                               </div>
                             </div>
+
+                            {/* Music Player */}
+                            {currentStory.music && (
+                              <div className="mb-6">
+                                <h3 className="text-white text-sm font-medium mb-4 text-gray-300">Music</h3>
+                                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600/50">
+                                  <audio 
+                                    controls 
+                                    className="w-full"
+                                    src={currentStory.music}
+                                  >
+                                    Your browser does not support the audio element.
+                                  </audio>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      e.preventDefault()
+                                      window.open(currentStory.music, '_blank', 'noopener,noreferrer')
+                                    }}
+                                    className="mt-2 text-purple-400 hover:text-purple-300 text-sm underline"
+                                  >
+                                    Open music file in new tab
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Footer with Date and Action Icons */}
                             <div className="flex items-center justify-between pt-4 border-t border-gray-700/50">

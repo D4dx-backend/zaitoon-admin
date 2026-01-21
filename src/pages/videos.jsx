@@ -37,7 +37,12 @@ function Videos() {
   const [videoForm, setVideoForm] = useState({
     title: '',
     category: '',
-    videoLink: ''
+    videoLink: '',
+    language: ''
+  })
+  
+  const [fileInputs, setFileInputs] = useState({
+    image: null
   })
   
   const [categoryForm, setCategoryForm] = useState({
@@ -105,6 +110,9 @@ function Videos() {
       formData.append('category', videoForm.category)
       formData.append('videoType', 'link')
       formData.append('video', videoForm.videoLink)
+      if (videoForm.language) {
+        formData.append('language', videoForm.language)
+      }
       
       const response = await fetch(`${API_BASE}/videos`, {
         method: 'POST',
@@ -141,6 +149,9 @@ function Videos() {
       formData.append('category', videoForm.category)
       formData.append('videoType', 'link')
       formData.append('video', videoForm.videoLink)
+      if (videoForm.language) {
+        formData.append('language', videoForm.language)
+      }
       
       const response = await fetch(`${API_BASE}/videos/${editingVideo._id}`, {
         method: 'PUT',
@@ -301,7 +312,8 @@ function Videos() {
     setVideoForm({
       title: '',
       category: '',
-      videoLink: ''
+      videoLink: '',
+      language: ''
     })
     setEditingVideo(null)
     setShowVideoForm(false)
@@ -349,7 +361,8 @@ function Videos() {
     setVideoForm({
       title: video.title || '',
       category: video.category?._id || '',
-      videoLink: video.videoLink || video.video || ''
+      videoLink: video.videoLink || video.video || '',
+      language: video.language || ''
     })
     setExpandedCard(null)
     setSelectedVideo(null)
@@ -836,6 +849,12 @@ function Videos() {
                                       </div>
                                     </div>
                                   )}
+                                  {currentVideo.language && (
+                                    <div className="bg-gray-800/50 rounded-lg p-3">
+                                      <span className="text-gray-400 text-xs mb-2 block">Language</span>
+                                      <span className="text-white text-sm">{currentVideo.language}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                                           
@@ -935,6 +954,22 @@ function Videos() {
                   />
                 </div>
 
+                {/* Language */}
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Language</label>
+                  <CustomDropdown
+                    options={[
+                      { value: 'English', label: 'English' },
+                      { value: 'Malayalam', label: 'Malayalam' },
+                      { value: 'Hindi', label: 'Hindi' },
+                      { value: 'Urdu', label: 'Urdu' }
+                    ]}
+                    value={videoForm.language}
+                    onChange={(value) => setVideoForm({ ...videoForm, language: value })}
+                    placeholder="Select language..."
+                    className="w-full"
+                  />
+                </div>
 
                 {/* Video Link Input */}
                 <div>
