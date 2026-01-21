@@ -72,7 +72,8 @@ function Stories() {
     mlBanner: '',
     urBanner: '',
     hinBanner: '',
-    highlight: 'Disable'
+    highlight: 'Disable',
+    music: ''
   })
 
   // File upload states
@@ -87,7 +88,8 @@ function Stories() {
     adBanner: null,
     mlBanner: null,
     urBanner: null,
-    hinBanner: null
+    hinBanner: null,
+    music: null
   })
 
   // API Base URL
@@ -347,7 +349,7 @@ function Stories() {
       // Handle file uploads
       const fileFields = [
         'coverImage', 'storyFile', 'mlStoryFile', 'urStoryFile', 'hinStoryFile',
-        'adBanner', 'mlBanner', 'urBanner', 'hinBanner'
+        'adBanner', 'mlBanner', 'urBanner', 'hinBanner', 'music'
       ]
       
       fileFields.forEach(field => {
@@ -428,7 +430,8 @@ function Stories() {
       mlBanner: '',
       urBanner: '',
       hinBanner: '',
-      highlight: 'Disable'
+      highlight: 'Disable',
+      music: ''
     })
     setEditingEpisode(null)
     setShowEpisodeForm(false)
@@ -442,7 +445,8 @@ function Stories() {
       adBanner: null,
       mlBanner: null,
       urBanner: null,
-      hinBanner: null
+      hinBanner: null,
+      music: null
     })
   }
 
@@ -552,7 +556,8 @@ function Stories() {
       adBanner: null,
       mlBanner: null,
       urBanner: null,
-      hinBanner: null
+      hinBanner: null,
+      music: null
     })
     setShowEpisodeForm(true)
   }
@@ -626,10 +631,15 @@ function Stories() {
       formData.append('readTime', episodeForm.readTime)
       formData.append('highlight', episodeForm.highlight)
 
-      // Add files if they exist
-      Object.entries(files).forEach(([key, file]) => {
-        if (file) {
-          formData.append(key, file)
+      // Handle file uploads from fileInputs
+      const fileFields = [
+        'coverImage', 'storyFile', 'mlStoryFile', 'urStoryFile', 'hinStoryFile',
+        'adBanner', 'mlBanner', 'urBanner', 'hinBanner', 'music'
+      ]
+      
+      fileFields.forEach(field => {
+        if (fileInputs[field] && fileInputs[field].files[0]) {
+          formData.append(field, fileInputs[field].files[0])
         }
       })
 
@@ -1902,6 +1912,39 @@ function Stories() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Music (MP3)</label>
+                  {editingEpisode && editingEpisode.music && (
+                    <div className="mb-3">
+                      <p className="text-gray-400 text-sm mb-2">Current music:</p>
+                      <audio 
+                        controls 
+                        className="w-full mb-2"
+                        src={editingEpisode.music}
+                      >
+                        Your browser does not support the audio element.
+                      </audio>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          window.open(editingEpisode.music, '_blank', 'noopener,noreferrer')
+                        }}
+                        className="text-purple-400 hover:text-purple-300 text-sm underline"
+                      >
+                        Open music file
+                      </button>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="audio/mpeg,audio/mp3,.mp3"
+                    onChange={(e) => setFileInputs({ ...fileInputs, music: e.target })}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600"
+                  />
+                  <p className="text-gray-400 text-xs mt-2">Only MP3 format is supported</p>
+                </div>
+
                 <div className="flex justify-end space-x-4 pt-8">
                   <button
                     type="button"
@@ -2079,6 +2122,28 @@ function Stories() {
                     )}
                   </div>
                 </div>
+
+                {/* Music Section */}
+                {selectedEpisode.music && (
+                  <div className="mb-6">
+                    <h3 className="text-white text-lg font-semibold mb-4" style={{ fontFamily: 'Archivo Black' }}>Music</h3>
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600/50">
+                      <audio 
+                        controls 
+                        className="w-full"
+                        src={selectedEpisode.music}
+                      >
+                        Your browser does not support the audio element.
+                      </audio>
+                      <button 
+                        onClick={() => window.open(selectedEpisode.music, '_blank', 'noopener,noreferrer')}
+                        className="mt-2 text-purple-400 hover:text-purple-300 text-sm underline"
+                      >
+                        Open music file in new tab
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Banners Section */}
                 <div className="mb-6">

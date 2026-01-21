@@ -55,30 +55,93 @@ function Dashboard() {
   const singleStoriesScrollRef = useRef(null)
   const videosScrollRef = useRef(null)
 
+  // Store wheel event handlers for proper cleanup
+  const wheelHandlers = useRef({
+    stories: null,
+    singleStories: null,
+    videos: null
+  })
+
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
+  // Check if any popup/modal is currently open (optimized - no logging)
+  const isAnyPopupOpen = () => {
+    return expandedCard !== null || expandedSingleStory !== null || expandedVideo !== null || showEpisodeDetails
+  }
+
+  // Handle wheel events for horizontal scrolling
+  const handleWheel = (e, scrollRef) => {
+    // If any popup is open, don't allow background scrolling
+    if (isAnyPopupOpen()) {
+      return
+    }
+    
+    if (scrollRef.current) {
+      // Check if scrolling is actually possible
+      const canScroll = scrollRef.current.scrollWidth > scrollRef.current.clientWidth
+      if (!canScroll) {
+        return // No need to prevent default if can't scroll
+      }
+      
+      // Only prevent default and handle if there's actual delta
+      const deltaY = e.deltaY
+      // Ignore zero or near-zero deltas (like -0, 0, or very small values)
+      if (Math.abs(deltaY) < 1) {
+        return
+      }
+      
+      e.preventDefault()
+      e.stopPropagation()
+      const scrollAmount = deltaY * 1.5
+      scrollRef.current.scrollLeft += scrollAmount
+    }
+  }
 
   useEffect(() => {
     fetchAllData()
   }, [])
 
-  // Handle wheel events for horizontal scrolling
-  const handleWheel = (e, scrollRef) => {
-    if (scrollRef.current) {
-      e.preventDefault()
-      scrollRef.current.scrollLeft += e.deltaY
+  // Re-attach wheel listeners when popup closes
+  useEffect(() => {
+    const popupOpen = isAnyPopupOpen()
+    
+    // If no popup is open, re-attach listeners for all containers
+    if (!popupOpen) {
+      const refs = [
+        { ref: storiesScrollRef, key: 'stories' },
+        { ref: singleStoriesScrollRef, key: 'singleStories' },
+        { ref: videosScrollRef, key: 'videos' }
+      ]
+      
+      refs.forEach(({ ref, key }) => {
+        if (ref.current && !wheelHandlers.current[key]) {
+          const handler = (e) => handleWheel(e, ref)
+          wheelHandlers.current[key] = handler
+          ref.current.addEventListener('wheel', handler, { passive: false })
+        }
+      })
     }
-  }
+  }, [expandedCard, expandedSingleStory, expandedVideo, showEpisodeDetails])
 
   // Handle mouse enter/leave for scroll containers
-  const handleMouseEnter = (scrollRef) => {
-    if (scrollRef.current) {
-      scrollRef.current.addEventListener('wheel', (e) => handleWheel(e, scrollRef), { passive: false })
+  const handleMouseEnter = (scrollRef, containerType) => {
+    // Don't attach wheel listener if any popup is open
+    if (isAnyPopupOpen()) {
+      return
+    }
+    
+    if (scrollRef.current && !wheelHandlers.current[containerType]) {
+      // Create handler function
+      const handler = (e) => handleWheel(e, scrollRef)
+      wheelHandlers.current[containerType] = handler
+      scrollRef.current.addEventListener('wheel', handler, { passive: false })
     }
   }
 
-  const handleMouseLeave = (scrollRef) => {
-    if (scrollRef.current) {
-      scrollRef.current.removeEventListener('wheel', (e) => handleWheel(e, scrollRef))
+  const handleMouseLeave = (scrollRef, containerType) => {
+    if (scrollRef.current && wheelHandlers.current[containerType]) {
+      scrollRef.current.removeEventListener('wheel', wheelHandlers.current[containerType])
+      wheelHandlers.current[containerType] = null
     }
   }
 
@@ -138,6 +201,8 @@ function Dashboard() {
   const handleCardExpand = (storyId) => {
     setExpandedCard(storyId)
     fetchStoryDetails(storyId)
+    // Remove all active wheel listeners when popup opens
+    removeAllWheelListeners()
   }
 
   // Handle season selection without scroll reset
@@ -168,12 +233,30 @@ function Dashboard() {
   const handleEpisodeSelect = (episode) => {
     setSelectedEpisode(episode)
     setShowEpisodeDetails(true)
+    // Remove all active wheel listeners when popup opens
+    removeAllWheelListeners()
   }
 
   // Handle episode details close
   const handleEpisodeDetailsClose = () => {
     setSelectedEpisode(null)
     setShowEpisodeDetails(false)
+  }
+
+  // Remove all active wheel listeners from scroll containers
+  const removeAllWheelListeners = () => {
+    const refs = [
+      { ref: storiesScrollRef, key: 'stories' },
+      { ref: singleStoriesScrollRef, key: 'singleStories' },
+      { ref: videosScrollRef, key: 'videos' }
+    ]
+    
+    refs.forEach(({ ref, key }) => {
+      if (ref.current && wheelHandlers.current[key]) {
+        ref.current.removeEventListener('wheel', wheelHandlers.current[key])
+        wheelHandlers.current[key] = null
+      }
+    })
   }
 
   // Fetch single story details
@@ -195,6 +278,8 @@ function Dashboard() {
   const handleSingleStoryExpand = (storyId) => {
     setExpandedSingleStory(storyId)
     fetchSingleStoryDetails(storyId)
+    // Remove all active wheel listeners when popup opens
+    removeAllWheelListeners()
   }
 
   // Handle single story card collapse
@@ -222,6 +307,8 @@ function Dashboard() {
   const handleVideoExpand = (videoId) => {
     setExpandedVideo(videoId)
     fetchVideoDetails(videoId)
+    // Remove all active wheel listeners when popup opens
+    removeAllWheelListeners()
   }
 
   // Handle video card collapse
@@ -337,6 +424,9 @@ function Dashboard() {
                 handleCardCollapse()
               }
             }}
+            onWheel={(e) => {
+              e.stopPropagation()
+            }}
           >
             <div 
               ref={modalRef}
@@ -344,6 +434,9 @@ function Dashboard() {
               onClick={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
+              }}
+              onWheel={(e) => {
+                e.stopPropagation()
               }}
             >
               {!currentStory.description ? (
@@ -563,6 +656,9 @@ function Dashboard() {
                 handleSingleStoryCollapse()
               }
             }}
+            onWheel={(e) => {
+              e.stopPropagation()
+            }}
           >
             <div 
               ref={modalRef}
@@ -570,6 +666,9 @@ function Dashboard() {
               onClick={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
+              }}
+              onWheel={(e) => {
+                e.stopPropagation()
               }}
             >
               {!currentSingleStory.description ? (
@@ -705,6 +804,9 @@ function Dashboard() {
                 handleVideoCollapse()
               }
             }}
+            onWheel={(e) => {
+              e.stopPropagation()
+            }}
           >
             <div 
               ref={modalRef}
@@ -712,6 +814,9 @@ function Dashboard() {
               onClick={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
+              }}
+              onWheel={(e) => {
+                e.stopPropagation()
               }}
             >
               {!currentVideo.title ? (
@@ -874,8 +979,8 @@ function Dashboard() {
             <div 
               ref={storiesScrollRef}
               className="overflow-x-auto scrollbar-hide"
-              onMouseEnter={() => handleMouseEnter(storiesScrollRef)}
-              onMouseLeave={() => handleMouseLeave(storiesScrollRef)}
+              onMouseEnter={() => handleMouseEnter(storiesScrollRef, 'stories')}
+              onMouseLeave={() => handleMouseLeave(storiesScrollRef, 'stories')}
             >
               <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
                 {stories.slice(0, 8).map((story) => (
@@ -913,8 +1018,8 @@ function Dashboard() {
             <div 
               ref={singleStoriesScrollRef}
               className="overflow-x-auto scrollbar-hide"
-              onMouseEnter={() => handleMouseEnter(singleStoriesScrollRef)}
-              onMouseLeave={() => handleMouseLeave(singleStoriesScrollRef)}
+              onMouseEnter={() => handleMouseEnter(singleStoriesScrollRef, 'singleStories')}
+              onMouseLeave={() => handleMouseLeave(singleStoriesScrollRef, 'singleStories')}
             >
               <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
                 {singleStories.slice(0, 8).map((singleStory) => (
@@ -952,8 +1057,8 @@ function Dashboard() {
             <div 
               ref={videosScrollRef}
               className="overflow-x-auto scrollbar-hide"
-              onMouseEnter={() => handleMouseEnter(videosScrollRef)}
-              onMouseLeave={() => handleMouseLeave(videosScrollRef)}
+              onMouseEnter={() => handleMouseEnter(videosScrollRef, 'videos')}
+              onMouseLeave={() => handleMouseLeave(videosScrollRef, 'videos')}
             >
               <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
                 {videos.slice(0, 8).map((video) => (
@@ -981,8 +1086,18 @@ function Dashboard() {
 
       {/* Episode Details Modal */}
       {showEpisodeDetails && selectedEpisode && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-md z-[10000] flex items-center justify-center p-4">
-          <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-600/50 scrollbar-hide scroll-smooth">
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-md z-[10000] flex items-center justify-center p-4"
+          onWheel={(e) => {
+            e.stopPropagation()
+          }}
+        >
+          <div 
+            className="bg-gray-900/80 backdrop-blur-lg rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-600/50 scrollbar-hide scroll-smooth"
+            onWheel={(e) => {
+              e.stopPropagation()
+            }}
+          >
             <div className="p-6">
               {/* Header with Close Button */}
               <div className="flex justify-between items-start mb-6">
