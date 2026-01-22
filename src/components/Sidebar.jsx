@@ -9,7 +9,12 @@ import {
   PuzzlePieceIcon,
   PhotoIcon,
   ArrowRightOnRectangleIcon,
-  Bars3Icon
+  Bars3Icon,
+  AcademicCapIcon,
+  QuestionMarkCircleIcon,
+  TrophyIcon,
+  Cog6ToothIcon,
+  ListBulletIcon
 } from '@heroicons/react/24/outline'
 import logo from '../assets/logo.png'
 import dxLogo from '../assets/dxLogoWhite.png'
@@ -129,6 +134,46 @@ function Sidebar() {
           >
             <PhotoIcon className={`w-5 h-5 ${isActive('/banners') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
             <span className="text-sm font-medium">Banners</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/quizzes')}
+            className={getButtonClasses('/quizzes')}
+          >
+            <AcademicCapIcon className={`w-5 h-5 ${isActive('/quizzes') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+            <span className="text-sm font-medium">Quizzes</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/questions')}
+            className={getButtonClasses('/questions')}
+          >
+            <QuestionMarkCircleIcon className={`w-5 h-5 ${isActive('/questions') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+            <span className="text-sm font-medium">Question Bank</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/leaderboard')}
+            className={getButtonClasses('/leaderboard')}
+          >
+            <TrophyIcon className={`w-5 h-5 ${isActive('/leaderboard') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+            <span className="text-sm font-medium">Leaderboard</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/quiz-management')}
+            className={getButtonClasses('/quiz-management')}
+          >
+            <Cog6ToothIcon className={`w-5 h-5 ${isActive('/quiz-management') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+            <span className="text-sm font-medium">Quiz Management</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/quiz-attempts')}
+            className={getButtonClasses('/quiz-attempts')}
+          >
+            <ListBulletIcon className={`w-5 h-5 ${isActive('/quiz-attempts') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+            <span className="text-sm font-medium">Quiz Attempts</span>
           </button>
         </nav>
 

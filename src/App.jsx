@@ -10,6 +10,12 @@ import Support from './pages/support'
 import BrightBox from './pages/brightBox'
 import Puzzles from './pages/puzzles'
 import Banners from './pages/banners'
+import Quizzes from './pages/quizzes'
+import Questions from './pages/questions'
+import Leaderboard from './pages/leaderboard'
+import QuizManagement from './pages/quizManagement'
+import QuizAttempts from './pages/quizAttempts'
+import AttemptDetail from './pages/attemptDetail'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -131,6 +137,54 @@ function App() {
           element={
             isAuthenticated ? 
             <Banners /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/quizzes" 
+          element={
+            isAuthenticated ? 
+            <Quizzes /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/questions" 
+          element={
+            isAuthenticated ? 
+            <Questions /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/leaderboard" 
+          element={
+            isAuthenticated ? 
+            <Leaderboard /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/quiz-management" 
+          element={
+            isAuthenticated ? 
+            <QuizManagement /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/quiz-attempts" 
+          element={
+            isAuthenticated ? 
+            <QuizAttempts /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/quiz-attempts/:attemptId" 
+          element={
+            isAuthenticated ? 
+            <AttemptDetail /> : 
             <Navigate to="/login" replace />
           } 
         />
