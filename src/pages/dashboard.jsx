@@ -386,6 +386,7 @@ function Dashboard() {
                 src={resolveMediaUrl(item.coverImage)}
                 alt={item.title || item.mlTitle || 'Cover'}
                 className="w-full h-full object-cover transition duration-300"
+                loading="lazy"
                 onError={(e) => {
                   e.target.style.display = 'none'
                   e.target.nextSibling && (e.target.nextSibling.style.display = 'flex')
@@ -475,6 +476,7 @@ function Dashboard() {
                         src={resolveMediaUrl(currentStory.coverImage)}
                         alt={currentStory.title}
                         className="max-w-full max-h-64 object-contain rounded-xl shadow-lg"
+                        loading="lazy"
                         onError={(e) => { e.target.style.display = 'none' }}
                       />
                     </div>
@@ -555,6 +557,7 @@ function Dashboard() {
                                       src={resolveMediaUrl(selectedSeason.seasonBanner)}
                                       alt={`Season ${selectedSeason.seasonNumber}`}
                                       className="w-12 h-12 object-cover rounded-lg"
+                                      loading="lazy"
                                       onError={(e) => { e.target.style.display = 'none' }}
                                     />
                                   )}
@@ -580,6 +583,7 @@ function Dashboard() {
                                               src={resolveMediaUrl(episode.coverImage)}
                                               alt={episode.title}
                                               className="w-10 h-10 object-cover rounded-lg"
+                                              loading="lazy"
                                               onError={(e) => { e.target.style.display = 'none' }}
                                             />
                                           )}
@@ -707,6 +711,7 @@ function Dashboard() {
                         src={resolveMediaUrl(currentSingleStory.coverImage)}
                         alt={currentSingleStory.title}
                         className="max-w-full max-h-64 object-contain rounded-xl shadow-lg"
+                        loading="lazy"
                         onError={(e) => { e.target.style.display = 'none' }}
                       />
                     </div>
@@ -874,6 +879,7 @@ function Dashboard() {
                                 src={resolveMediaUrl(currentVideo.category.image)}
                                 alt={currentVideo.category.title}
                                 className="w-8 h-8 object-cover rounded-lg"
+                                loading="lazy"
                                 onError={(e) => { e.target.style.display = 'none' }}
                               />
                             )}
@@ -1136,6 +1142,7 @@ function Dashboard() {
                     src={resolveMediaUrl(selectedEpisode.coverImage)}
                     alt={selectedEpisode.title}
                     className="max-w-full max-h-64 object-contain rounded-xl shadow-lg"
+                    loading="lazy"
                     onError={(e) => { e.target.style.display = 'none' }}
                   />
                 </div>
@@ -1240,6 +1247,7 @@ function Dashboard() {
                           src={selectedEpisode.adBanner}
                           alt="Ad Banner"
                           className="w-full h-20 object-cover rounded-lg"
+                          loading="lazy"
                           onError={(e) => {
                             e.target.style.display = 'none'
                             e.target.nextSibling.style.display = 'flex'
@@ -1263,6 +1271,7 @@ function Dashboard() {
                           src={selectedEpisode.mlBanner}
                           alt="Malayalam Banner"
                           className="w-full h-20 object-cover rounded-lg"
+                          loading="lazy"
                           onError={(e) => {
                             e.target.style.display = 'none'
                             e.target.nextSibling.style.display = 'flex'
@@ -1286,6 +1295,7 @@ function Dashboard() {
                           src={selectedEpisode.urBanner}
                           alt="Urdu Banner"
                           className="w-full h-20 object-cover rounded-lg"
+                          loading="lazy"
                           onError={(e) => {
                             e.target.style.display = 'none'
                             e.target.nextSibling.style.display = 'flex'
@@ -1309,6 +1319,7 @@ function Dashboard() {
                           src={selectedEpisode.hinBanner}
                           alt="Hindi Banner"
                           className="w-full h-20 object-cover rounded-lg"
+                          loading="lazy"
                           onError={(e) => {
                             e.target.style.display = 'none'
                             e.target.nextSibling.style.display = 'flex'
@@ -1335,6 +1346,7 @@ function Dashboard() {
           src={gradient} 
           alt="Gradient" 
           className="w-[800px] h-[800px] opacity-60"
+          loading="lazy"
         />
       </div>
     </div>
