@@ -16,6 +16,7 @@ import Leaderboard from './pages/leaderboard'
 import QuizManagement from './pages/quizManagement'
 import QuizAttempts from './pages/quizAttempts'
 import AttemptDetail from './pages/attemptDetail'
+import QuizTest from './pages/quizTest'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -189,6 +190,7 @@ function App() {
           } 
         />
         <Route path="/support" element={<Support />} />
+        <Route path="/quiz-test" element={<QuizTest />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
