@@ -56,11 +56,12 @@ function Videos() {
   
   // Debug logging
 
-  // Fetch videos
+  // Fetch videos (paginated for performance)
   const fetchVideos = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/videos`)
+      // Load only the first page with a small limit to avoid fetching all videos at once
+      const response = await fetch(`${API_BASE}/videos?page=1&limit=10`)
       const data = await response.json()
       if (data.success) {
         setVideos(data.data.videos)
@@ -459,19 +460,20 @@ function Videos() {
              ) : (
                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-4">
                  {/* Category Cards - Limited Display */}
-                 {categories.slice(0, 5).map((category) => (
+                      {categories.slice(0, 5).map((category) => (
                    <div 
                      key={category._id}
                      className="relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-gray-600 hover:scale-105 hover:shadow-2xl"
                    >
                      {/* Category Image */}
                      <div className="relative aspect-square overflow-hidden">
-                       {category.image ? (
-                         <img
-                           src={category.image}
-                           alt={category.title}
-                           className="w-full h-full object-cover transition duration-300"
-                         />
+                      {category.image ? (
+                        <img
+                          src={category.image}
+                          alt={category.title}
+                          className="w-full h-full object-cover transition duration-300"
+                          loading="lazy"
+                        />
                        ) : (
                          <div className="w-full h-full bg-gray-800 flex items-center justify-center">
                            <FiVideo className="w-8 h-8 text-gray-500" />
@@ -609,6 +611,7 @@ function Videos() {
                                   src={category.image}
                                   alt={category.title}
                                   className="w-12 h-12 object-cover rounded-lg"
+                                  loading="lazy"
                                 />
                               ) : (
                                 <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
