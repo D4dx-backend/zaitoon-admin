@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Sidebar from '../components/Sidebar'
 import axios from 'axios'
 import { 
@@ -7,59 +7,82 @@ import {
   FiRefreshCw
 } from 'react-icons/fi'
 
+const today = () => new Date().toISOString().split('T')[0]
+
+const SORT_OPTIONS = [
+  { value: 'score-desc', label: 'Score (high → low)', by: 'score', order: 'desc' },
+  { value: 'score-asc', label: 'Score (low → high)', by: 'score', order: 'asc' },
+  { value: 'time-asc', label: 'Time (fastest first)', by: 'time', order: 'asc' },
+  { value: 'time-desc', label: 'Time (slowest first)', by: 'time', order: 'desc' }
+]
+
 function Leaderboard() {
   const API_BASE = import.meta.env.VITE_API_BASE_URL
   const [leaderboard, setLeaderboard] = useState([])
   const [quiz, setQuiz] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [fromDate, setFromDate] = useState(today())
+  const [toDate, setToDate] = useState(today())
+  const [viewMode, setViewMode] = useState('daily') // 'daily' | 'total'
+  const [totalAllTime, setTotalAllTime] = useState(false) // when Total: ignore date range
+  const [sortOption, setSortOption] = useState('score-desc')
 
   useEffect(() => {
-    fetchTodayLeaderboard()
+    fetchData()
   }, [])
 
-  const fetchTodayLeaderboard = async () => {
-    setLoading(true)
-    try {
-      const token = localStorage.getItem('adminToken')
-      const response = await axios.get(`${API_BASE}/quizzes/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (response.data.success) {
-        const data = response.data.data
-        setLeaderboard(data.attendees || [])
-        setQuiz({
-          title: 'Daily Quiz',
-          mlTitle: 'ദൈനംദിന ക്വിസ്',
-          quizDate: data.quizConfig?.startDate
-        })
-      }
-    } catch (error) {
-      console.error('Failed to fetch leaderboard:', error)
-    } finally {
-      setLoading(false)
-    }
+  const fetchTodayLeaderboard = () => {
+    setFromDate(today())
+    setToDate(today())
+    setTotalAllTime(false)
+    setTimeout(() => fetchData(today(), today(), viewMode, false), 0)
   }
 
-  const fetchLeaderboardByDate = async (date) => {
-    if (!date) return
-    
+  const fetchData = async (from = fromDate, to = toDate, mode = viewMode, allTime = totalAllTime) => {
+    const isTotal = mode === 'total'
+    if (!isTotal && (!from || !to)) return
+    if (isTotal && !allTime && (!from || !to || from > to)) return
     setLoading(true)
     try {
-      // Use stats endpoint which filters by config date range
       const token = localStorage.getItem('adminToken')
-      const response = await axios.get(`${API_BASE}/quizzes/stats`, {
+      let url
+      if (isTotal) {
+        if (allTime) {
+          url = `${API_BASE}/quizzes/leaderboard/total`
+        } else {
+          url = `${API_BASE}/quizzes/leaderboard/total?startDate=${from}&endDate=${to}`
+        }
+      } else {
+        url = `${API_BASE}/quizzes/leaderboard/daily?date=${from === to ? from : to}`
+      }
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (response.data.success) {
         const data = response.data.data
-        // Filter by selected date if needed (stats already filters by config date range)
-        setLeaderboard(data.attendees || [])
-        setQuiz({
-          title: 'Daily Quiz',
-          mlTitle: 'ദൈനംദിന ക്വിസ്',
-          quizDate: data.quizConfig?.startDate
-        })
+        if (isTotal) {
+          const list = (data.leaderboard || []).map((e, i) => ({
+            ...e,
+            rank: i + 1,
+            score: e.totalScore,
+            percentage: null
+          }))
+          setLeaderboard(list)
+          setQuiz({
+            title: allTime ? 'Total Leaderboard (all time)' : 'Total Leaderboard (aggregated)',
+            mlTitle: '',
+            quizDate: allTime ? 'All time' : `${from} to ${to}`,
+            isTotal: true
+          })
+        } else {
+          setLeaderboard(data.attendees || [])
+          setQuiz({
+            title: 'Daily Quiz',
+            mlTitle: 'ദൈനംദിന ക്വിസ്',
+            quizDate: data.date,
+            isTotal: false
+          })
+        }
       } else {
         setLeaderboard([])
         setQuiz(null)
@@ -73,15 +96,53 @@ function Leaderboard() {
     }
   }
 
-  const handleDateChange = (e) => {
-    const date = e.target.value
-    setSelectedDate(date)
-    if (date) {
-      fetchLeaderboardByDate(date)
+  const handleApplyRange = () => {
+    if (viewMode === 'total' && totalAllTime) {
+      fetchData(fromDate, toDate, 'total', true)
+    } else if (fromDate && toDate && fromDate <= toDate) {
+      fetchData()
     }
   }
 
+  const handleTotalClick = () => {
+    const next = viewMode === 'total' ? 'daily' : 'total'
+    setViewMode(next)
+    if (next === 'total') {
+      if (totalAllTime) fetchData(fromDate, toDate, 'total', true)
+      else if (fromDate && toDate) fetchData(fromDate, toDate, 'total', false)
+    } else if (fromDate && toDate) {
+      fetchData(fromDate, toDate, 'daily')
+    }
+  }
+
+  const handleAllTimeChange = (e) => {
+    const checked = e.target.checked
+    setTotalAllTime(checked)
+    if (viewMode === 'total') {
+      if (checked) fetchData(fromDate, toDate, 'total', true)
+      else if (fromDate && toDate) fetchData(fromDate, toDate, 'total', false)
+    }
+  }
+
+  const { by: sortBy, order: sortOrder } = SORT_OPTIONS.find(o => o.value === sortOption) || { by: 'score', order: 'desc' }
+  const sortedLeaderboard = useMemo(() => {
+    const list = [...leaderboard]
+    list.sort((a, b) => {
+      const scoreA = a.score ?? a.totalScore ?? 0
+      const scoreB = b.score ?? b.totalScore ?? 0
+      const timeA = a.totalDuration ?? a.timeTaken ?? 0
+      const timeB = b.totalDuration ?? b.timeTaken ?? 0
+      if (sortBy === 'score') {
+        return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB
+      }
+      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA
+    })
+    return list.map((e, i) => ({ ...e, rank: i + 1 }))
+  }, [leaderboard, sortBy, sortOrder])
+
   const formatDate = (dateString) => {
+    if (!dateString) return ''
+    if (typeof dateString === 'string' && (dateString.includes(' to ') || dateString === 'All time')) return dateString
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -114,22 +175,62 @@ function Leaderboard() {
             <h1 className="text-4xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
               Leaderboard
             </h1>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center space-x-2">
                 <FiCalendar className="w-5 h-5 text-gray-400" />
                 <input
                   type="date"
-                  value={selectedDate}
-                  onChange={handleDateChange}
-                  className="px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
+                />
+                <span className="text-gray-400">to</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <button
+                onClick={handleApplyRange}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Apply
+              </button>
+              <button
+                onClick={handleTotalClick}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${viewMode === 'total' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+              >
+                <FiAward className="w-5 h-5" />
+                <span>Total</span>
+              </button>
+              {viewMode === 'total' && (
+                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={totalAllTime}
+                    onChange={handleAllTimeChange}
+                    className="rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500"
+                  />
+                  All time
+                </label>
+              )}
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <button
                 onClick={fetchTodayLeaderboard}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
               >
                 <FiRefreshCw className="w-5 h-5" />
-                <span>Refresh</span>
+                <span>Today</span>
               </button>
             </div>
           </div>
@@ -142,6 +243,11 @@ function Leaderboard() {
               <p className="text-sm text-gray-500">
                 Date: {formatDate(quiz.quizDate)}
               </p>
+              {quiz.isTotal && (
+                <p className="text-sm text-gray-400 mt-2">
+                  One row per user — score and time are combined across all their attempts. Use the Attempts column to see how many tries each user had.
+                </p>
+              )}
             </div>
           )}
 
@@ -153,11 +259,15 @@ function Leaderboard() {
             </div>
           ) : !quiz ? (
             <div className="text-center py-12">
-              <p className="text-gray-400">No quiz found for the selected date.</p>
+              <p className="text-gray-400">Could not load leaderboard.</p>
             </div>
           ) : leaderboard.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-400">No attempts yet. Be the first to take the quiz!</p>
+              <p className="text-gray-400">
+                {viewMode === 'total'
+                  ? "No attempts in this date range. Try 'All time' or a wider range."
+                  : 'No attempts yet. Be the first to take the quiz!'}
+              </p>
             </div>
           ) : (
             <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
@@ -165,28 +275,19 @@ function Leaderboard() {
                 <table className="w-full">
                   <thead className="bg-gray-700">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Rank
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Class
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Score
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Correct
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Time
-                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Class</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Score</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Correct</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
+                      {quiz.isTotal && (
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Attempts</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {leaderboard.map((entry) => (
+                    {sortedLeaderboard.map((entry) => (
                       <tr
                         key={entry._id || entry.rank}
                         className={`hover:bg-gray-700/50 transition-colors ${
@@ -231,6 +332,11 @@ function Leaderboard() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                           {formatTime(entry.totalDuration || entry.timeTaken)}
                         </td>
+                        {quiz.isTotal && (
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                            {entry.attemptsCount ?? '—'}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
