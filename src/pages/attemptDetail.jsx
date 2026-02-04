@@ -110,7 +110,7 @@ function AttemptDetail() {
 
   const questions = attempt.questions || []
   const answers = attempt.answers || []
-  const user = attempt.userId || attempt.user || {}
+  const user = attempt.userId || attempt.userSnapshot || attempt.user || {}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
@@ -145,7 +145,7 @@ function AttemptDetail() {
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-gray-400">Name</p>
-                  <p className="text-white font-medium">{user.name || 'Unknown'}</p>
+                  <p className="text-white font-medium">{user.name || ''}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Email</p>

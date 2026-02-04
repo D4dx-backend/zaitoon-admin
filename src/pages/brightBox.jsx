@@ -8,30 +8,24 @@ import gradient from '../assets/gradiantRight.png'
 const BrightBox = () => {
   // States
   const [brightBoxes, setBrightBoxes] = useState([])
-  const [brightBoxSubs, setBrightBoxSubs] = useState([])
   const [brightBoxStories, setBrightBoxStories] = useState([])
   const [loading, setLoading] = useState(false)
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null })
   
   // Form states
   const [showBrightBoxForm, setShowBrightBoxForm] = useState(false)
-  const [showBrightBoxSubForm, setShowBrightBoxSubForm] = useState(false)
   const [showBrightBoxStoryForm, setShowBrightBoxStoryForm] = useState(false)
   const [editingBrightBox, setEditingBrightBox] = useState(null)
-  const [editingBrightBoxSub, setEditingBrightBoxSub] = useState(null)
   const [editingBrightBoxStory, setEditingBrightBoxStory] = useState(null)
   
   // View states
   const [expandedBrightBox, setExpandedBrightBox] = useState(null)
-  const [expandedBrightBoxSub, setExpandedBrightBoxSub] = useState(null)
   const [selectedBrightBoxStory, setSelectedBrightBoxStory] = useState(null)
   const [showStoryDetails, setShowStoryDetails] = useState(false)
   const [expandedCategory, setExpandedCategory] = useState(null)
   const [showCategoryTable, setShowCategoryTable] = useState(false)
   const [expandedStory, setExpandedStory] = useState(null)
   const [showStoriesTable, setShowStoriesTable] = useState(false)
-  const [expandedSubCategory, setExpandedSubCategory] = useState(null)
-  const [showSubCategoryStories, setShowSubCategoryStories] = useState(false)
   
   // Form data
   const [brightBoxForm, setBrightBoxForm] = useState({
@@ -41,20 +35,12 @@ const BrightBox = () => {
     hinTitle: ''
   })
   
-  const [brightBoxSubForm, setBrightBoxSubForm] = useState({
-    title: '',
-    mlTitle: '',
-    urTitle: '',
-    hnTitle: '',
-    category: ''
-  })
-  
   const [brightBoxStoryForm, setBrightBoxStoryForm] = useState({
     title: '',
     mlTitle: '',
     urTitle: '',
     hinTitle: '',
-    subCategory: ''
+    category: ''
   })
 
   // File upload states
@@ -74,18 +60,6 @@ const BrightBox = () => {
       }
     } catch (error) {
       console.error('Error fetching bright boxes:', error)
-    }
-  }
-
-  const fetchBrightBoxSubs = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/bright-box-subs`)
-      const data = await response.json()
-      if (data.success) {
-        setBrightBoxSubs(data.data.brightBoxSubs)
-      }
-    } catch (error) {
-      console.error('Error fetching bright box subs:', error)
     }
   }
 
@@ -125,7 +99,6 @@ const BrightBox = () => {
       try {
         await Promise.all([
           fetchBrightBoxes(),
-          fetchBrightBoxSubs(),
           fetchBrightBoxStories()
         ])
       } catch (error) {
@@ -228,7 +201,7 @@ const BrightBox = () => {
   }
 
   const deleteBrightBox = async (id) => {
-    showModal('confirmation', 'Are you sure you want to delete this bright box? This will also delete all sub-categories and stories.', async () => {
+    showModal('confirmation', 'Are you sure you want to delete this bright box? This will also delete all stories in this category.', async () => {
       setLoading(true)
       try {
         const response = await fetch(`${API_BASE}/bright-boxes/${id}`, {
@@ -251,7 +224,6 @@ const BrightBox = () => {
         if (data.success) {
           showModal('success', 'Bright Box deleted successfully!')
           fetchBrightBoxes()
-          fetchBrightBoxSubs()
           fetchBrightBoxStories()
         } else {
           showModal('error', data.message || 'Failed to delete bright box')
@@ -259,124 +231,6 @@ const BrightBox = () => {
       } catch (error) {
         console.error('Delete bright box error:', error)
         showModal('error', `Error deleting bright box: ${error.message}`)
-      } finally {
-        setLoading(false)
-      }
-    })
-  }
-
-  // BrightBoxSub CRUD operations
-  const createBrightBoxSub = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    
-    try {
-      const formData = new FormData()
-      Object.keys(brightBoxSubForm).forEach(key => {
-        if (brightBoxSubForm[key]) {
-          formData.append(key, brightBoxSubForm[key])
-        }
-      })
-      
-      if (fileInputs.subImage && fileInputs.subImage.files[0]) {
-        formData.append('image', fileInputs.subImage.files[0])
-      }
-
-      const response = await fetch(`${API_BASE}/bright-box-subs`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: formData
-      })
-      
-      const data = await response.json()
-      if (data.success) {
-        showModal('success', 'Bright Box Sub created successfully!')
-        resetBrightBoxSubForm()
-        setShowBrightBoxSubForm(false)
-        fetchBrightBoxSubs()
-      } else {
-        showModal('error', data.message || 'Failed to create bright box sub')
-      }
-    } catch (error) {
-      showModal('error', 'Error creating bright box sub')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const updateBrightBoxSub = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    
-    try {
-      const formData = new FormData()
-      Object.keys(brightBoxSubForm).forEach(key => {
-        if (brightBoxSubForm[key]) {
-          formData.append(key, brightBoxSubForm[key])
-        }
-      })
-      
-      if (fileInputs.subImage && fileInputs.subImage.files[0]) {
-        formData.append('image', fileInputs.subImage.files[0])
-      }
-
-      const response = await fetch(`${API_BASE}/bright-box-subs/${editingBrightBoxSub._id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: formData
-      })
-      
-      const data = await response.json()
-      if (data.success) {
-        showModal('success', 'Bright Box Sub updated successfully!')
-        resetBrightBoxSubForm()
-        setShowBrightBoxSubForm(false)
-        fetchBrightBoxSubs()
-      } else {
-        showModal('error', data.message || 'Failed to update bright box sub')
-      }
-    } catch (error) {
-      showModal('error', 'Error updating bright box sub')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const deleteBrightBoxSub = async (id) => {
-    showModal('confirmation', 'Are you sure you want to delete this bright box sub? This will also delete all stories.', async () => {
-      setLoading(true)
-      try {
-        const response = await fetch(`${API_BASE}/bright-box-subs/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-          }
-        })
-        
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          console.error('Delete error response:', errorData)
-          showModal('error', errorData.message || `Failed to delete bright box sub (${response.status})`)
-          return
-        }
-        
-        const data = await response.json()
-        
-        if (data.success) {
-          showModal('success', 'Bright Box Sub deleted successfully!')
-          fetchBrightBoxSubs()
-          fetchBrightBoxStories()
-        } else {
-          showModal('error', data.message || 'Failed to delete bright box sub')
-        }
-      } catch (error) {
-        console.error('Delete bright box sub error:', error)
-        showModal('error', `Error deleting bright box sub: ${error.message}`)
       } finally {
         setLoading(false)
       }
@@ -540,27 +394,13 @@ const BrightBox = () => {
     setSelectedFileNames(prev => ({ ...prev, image: '' }))
   }
 
-  const resetBrightBoxSubForm = () => {
-    setBrightBoxSubForm({
-      title: '',
-      mlTitle: '',
-      urTitle: '',
-      hnTitle: '',
-      category: ''
-    })
-    setEditingBrightBoxSub(null)
-    setShowBrightBoxSubForm(false)
-    setFileInputs(prev => ({ ...prev, subImage: null }))
-    setSelectedFileNames(prev => ({ ...prev, subImage: '' }))
-  }
-
   const resetBrightBoxStoryForm = () => {
     setBrightBoxStoryForm({
       title: '',
       mlTitle: '',
       urTitle: '',
       hinTitle: '',
-      subCategory: ''
+      category: ''
     })
     setEditingBrightBoxStory(null)
     setShowBrightBoxStoryForm(false)
@@ -584,22 +424,6 @@ const BrightBox = () => {
     setShowBrightBoxForm(true)
   }
 
-  const editBrightBoxSub = (brightBoxSub) => {
-    setEditingBrightBoxSub(brightBoxSub)
-    setBrightBoxSubForm({
-      title: brightBoxSub.title || '',
-      mlTitle: brightBoxSub.mlTitle || '',
-      urTitle: brightBoxSub.urTitle || '',
-      hnTitle: brightBoxSub.hnTitle || '',
-      category: brightBoxSub.category?._id || ''
-    })
-    setSelectedFileNames(prev => ({ 
-      ...prev, 
-      subImage: brightBoxSub.image ? brightBoxSub.image.split('/').pop() : '' 
-    }))
-    setShowBrightBoxSubForm(true)
-  }
-
   const editBrightBoxStory = (brightBoxStory) => {
     setEditingBrightBoxStory(brightBoxStory)
     setBrightBoxStoryForm({
@@ -607,7 +431,7 @@ const BrightBox = () => {
       mlTitle: brightBoxStory.mlTitle || '',
       urTitle: brightBoxStory.urTitle || '',
       hinTitle: brightBoxStory.hinTitle || '',
-      subCategory: brightBoxStory.subCategory?._id || ''
+      category: brightBoxStory.category?._id || ''
     })
     setSelectedFileNames({
       storyImage: brightBoxStory.image ? brightBoxStory.image.split('/').pop() : '',
@@ -624,14 +448,9 @@ const BrightBox = () => {
     setShowStoryDetails(true)
   }
 
-  // Get sub-categories for a bright box
-  const getSubCategories = (brightBoxId) => {
-    return brightBoxSubs.filter(sub => sub.category?._id === brightBoxId)
-  }
-
-  // Get stories for a sub-category
-  const getStories = (subCategoryId) => {
-    return brightBoxStories.filter(story => story.subCategory?._id === subCategoryId)
+  // Get stories for a category
+  const getStoriesByCategory = (categoryId) => {
+    return brightBoxStories.filter(story => story.category?._id === categoryId)
   }
 
   return (
@@ -658,25 +477,6 @@ const BrightBox = () => {
               </h1>
             </div>
             <div className="flex space-x-3">
-              <button
-                onClick={() => setShowBrightBoxSubForm(true)}
-                className="flex items-center justify-center space-x-2 text-white transition duration-200"
-                style={{
-                  background: 'linear-gradient(90.05deg, #7E1EB7 6.68%, #501392 49.26%, #3B0F73 91.85%)',
-                  width: '140px',
-                  height: '36px',
-                  borderRadius: '18px',
-                  fontFamily: 'Fredoka One',
-                  fontWeight: '400',
-                  fontSize: '14px',
-                  lineHeight: '100%',
-                  letterSpacing: '0%',
-                  textAlign: 'center'
-                }}
-              >
-                <FiPlus className="w-3 h-3" />
-                <span>Add Sub</span>
-              </button>
               <button
                 onClick={() => setShowBrightBoxStoryForm(true)}
                 className="flex items-center justify-center space-x-2 text-white transition duration-200"
@@ -750,7 +550,7 @@ const BrightBox = () => {
                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-4">
                  {/* Category Cards - Limited Display */}
                  {brightBoxes.slice(0, 5).map((brightBox) => {
-                   const subCategories = getSubCategories(brightBox._id)
+                   const storyCount = getStoriesByCategory(brightBox._id).length
                    
                    return (
                      <div 
@@ -779,8 +579,8 @@ const BrightBox = () => {
                            {brightBox.title}
                          </h3>
                          <div className="flex items-center space-x-1 text-purple-400">
-                           <FiFolder className="w-3 h-3" />
-                           <span className="text-xs">{subCategories.length} subs</span>
+                           <FiFile className="w-3 h-3" />
+                           <span className="text-xs">{storyCount} stories</span>
                          </div>
                        </div>
                      </div>
@@ -894,7 +694,6 @@ const BrightBox = () => {
                         <tr className="border-b border-gray-700/50">
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Image</th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Title</th>
-                          <th className="text-left py-3 px-4 text-gray-300 font-semibold">Sub-Categories</th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Stories</th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Created</th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Actions</th>
@@ -902,8 +701,7 @@ const BrightBox = () => {
                       </thead>
                       <tbody>
                         {brightBoxes.map((brightBox) => {
-                          const subCategories = getSubCategories(brightBox._id)
-                          const totalStories = subCategories.reduce((total, sub) => total + getStories(sub._id).length, 0)
+                          const totalStories = getStoriesByCategory(brightBox._id).length
                           
                           return (
                             <tr key={brightBox._id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition duration-200">
@@ -922,11 +720,6 @@ const BrightBox = () => {
                               </td>
                               <td className="py-4 px-4">
                                 <span className="text-white font-medium">{brightBox.title}</span>
-                              </td>
-                              <td className="py-4 px-4">
-                                <span className="text-gray-400">
-                                  {subCategories.length}
-                                </span>
                               </td>
                               <td className="py-4 px-4">
                                 <span className="text-gray-400">
@@ -1130,12 +923,8 @@ const BrightBox = () => {
                   </h1>
                   <div className="flex items-center space-x-4 text-sm text-gray-400">
                     <div className="flex items-center space-x-1">
-                      <FiFolder className="w-4 h-4 text-purple-400" />
-                      <span>{getSubCategories(expandedCategory._id).length} sub-categories</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
                       <FiFile className="w-4 h-4 text-green-400" />
-                      <span>{getSubCategories(expandedCategory._id).reduce((total, sub) => total + getStories(sub._id).length, 0)} stories</span>
+                      <span>{getStoriesByCategory(expandedCategory._id).length} stories</span>
                     </div>
                   </div>
                 </div>
@@ -1147,118 +936,78 @@ const BrightBox = () => {
                 </button>
               </div>
 
-              {/* Sub-Categories Management */}
+              {/* Stories in this category */}
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-white text-lg font-semibold" style={{ fontFamily: 'Archivo Black' }}>
-                    Sub-Categories
+                    Stories
                   </h3>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => {
-                        setBrightBoxSubForm(prev => ({ ...prev, category: expandedCategory._id }))
-                        setShowBrightBoxSubForm(true)
-                        setExpandedCategory(null)
-                      }}
-                      className="flex items-center space-x-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition duration-200 text-sm"
-                    >
-                      <FiPlus className="w-4 h-4" />
-                      <span>Add Sub-Category</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setBrightBoxStoryForm(prev => ({ ...prev, category: expandedCategory._id }))
+                      setShowBrightBoxStoryForm(true)
+                      setExpandedCategory(null)
+                    }}
+                    className="flex items-center space-x-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition duration-200 text-sm"
+                  >
+                    <FiPlus className="w-4 h-4" />
+                    <span>Add Story</span>
+                  </button>
                 </div>
-                
-                {getSubCategories(expandedCategory._id).length === 0 ? (
+                {getStoriesByCategory(expandedCategory._id).length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-400 text-sm mb-4">No sub-categories found</p>
+                    <p className="text-gray-400 text-sm mb-4">No stories in this category yet</p>
                     <button
                       onClick={() => {
-                        setBrightBoxSubForm(prev => ({ ...prev, category: expandedCategory._id }))
-                        setShowBrightBoxSubForm(true)
+                        setBrightBoxStoryForm(prev => ({ ...prev, category: expandedCategory._id }))
+                        setShowBrightBoxStoryForm(true)
                         setExpandedCategory(null)
                       }}
                       className="flex items-center space-x-2 mx-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition duration-200 text-sm"
                     >
                       <FiPlus className="w-4 h-4" />
-                      <span>Add First Sub-Category</span>
+                      <span>Add First Story</span>
                     </button>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {getSubCategories(expandedCategory._id).map((sub) => (
-                        <div key={sub._id} className="bg-gray-800/50 rounded-lg border border-gray-700/50 p-4 hover:bg-gray-800/70 transition duration-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <div 
-                              className="flex items-center space-x-3 cursor-pointer flex-1"
-                              onClick={() => {
-                                setExpandedSubCategory(sub)
-                                setShowSubCategoryStories(true)
-                                setExpandedCategory(null)
-                              }}
-                            >
-                              {sub.image && (
-                                <img
-                                  src={sub.image}
-                                  alt={sub.title}
-                                  className="w-12 h-12 object-cover rounded-lg"
-                                />
-                              )}
-                              <div>
-                                <h4 className="text-white font-medium">{sub.title}</h4>
-                                <p className="text-gray-400 text-sm">
-                                  {getStories(sub._id).length} stories
-                                </p>
-                              </div>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {getStoriesByCategory(expandedCategory._id).map((story) => (
+                      <div key={story._id} className="flex items-center justify-between bg-gray-800/50 rounded-lg border border-gray-700/50 p-3 hover:bg-gray-800/70 transition duration-200">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          {story.image ? (
+                            <img src={story.image} alt={story.title} className="w-10 h-10 object-cover rounded" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-700 rounded flex items-center justify-center">
+                              <FiFile className="w-5 h-5 text-gray-500" />
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => {
-                                  setExpandedSubCategory(sub)
-                                  setShowSubCategoryStories(true)
-                                  setExpandedCategory(null)
-                                }}
-                                className="p-1 text-gray-400 hover:text-blue-400 rounded"
-                                title="View Stories"
-                              >
-                                <FiEye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  editBrightBoxSub(sub)
-                                  setExpandedCategory(null)
-                                }}
-                                className="p-1 text-gray-400 hover:text-purple-400 rounded"
-                                title="Edit Sub-Category"
-                              >
-                                <FiEdit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  deleteBrightBoxSub(sub._id)
-                                  setExpandedCategory(null)
-                                }}
-                                className="p-1 text-gray-400 hover:text-red-400 rounded"
-                                title="Delete Sub-Category"
-                              >
-                                <FiTrash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
+                          )}
+                          <span className="text-white font-medium truncate">{story.title}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 flex-shrink-0">
                           <button
-                            onClick={() => {
-                              setBrightBoxStoryForm(prev => ({ ...prev, subCategory: sub._id }))
-                              setShowBrightBoxStoryForm(true)
-                              setExpandedCategory(null)
-                            }}
-                            className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-green-600/80 hover:bg-green-600 text-white rounded-lg transition duration-200 text-xs font-medium"
+                            onClick={() => { setExpandedStory(story); setExpandedCategory(null) }}
+                            className="p-1 text-gray-400 hover:text-green-400 rounded"
+                            title="View"
                           >
-                            <FiPlus className="w-3 h-3" />
-                            <span>Add Story</span>
+                            <FiEye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => { editBrightBoxStory(story); setExpandedCategory(null) }}
+                            className="p-1 text-gray-400 hover:text-purple-400 rounded"
+                            title="Edit"
+                          >
+                            <FiEdit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteBrightBoxStory(story._id)}
+                            className="p-1 text-gray-400 hover:text-red-400 rounded"
+                            title="Delete"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1317,9 +1066,7 @@ const BrightBox = () => {
                     {expandedStory.title}
                   </h1>
                   <div className="flex items-center space-x-1 text-sm text-gray-400">
-                    <span className="text-purple-400">{expandedStory.subCategory?.category?.title}</span>
-                    <span className="text-gray-500">•</span>
-                    <span className="text-blue-400">{expandedStory.subCategory?.title}</span>
+                    <span className="text-purple-400">{expandedStory.category?.title}</span>
                   </div>
                 </div>
                 <button
@@ -1511,7 +1258,6 @@ const BrightBox = () => {
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Image</th>
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Title</th>
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Category</th>
-                        <th className="text-left py-3 px-4 text-gray-400 font-medium">Sub-Category</th>
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Files</th>
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Created</th>
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Actions</th>
@@ -1545,12 +1291,7 @@ const BrightBox = () => {
                           </td>
                           <td className="py-3 px-4">
                             <span className="text-purple-400 text-sm">
-                              {story.subCategory?.category?.title || 'N/A'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="text-blue-400 text-sm">
-                              {story.subCategory?.title || 'N/A'}
+                              {story.category?.title || 'N/A'}
                             </span>
                           </td>
                           <td className="py-3 px-4">
@@ -1611,166 +1352,6 @@ const BrightBox = () => {
                   <p className="text-gray-400 text-sm mb-6">Get started by creating your first story</p>
                   <button
                     onClick={() => setShowBrightBoxStoryForm(true)}
-                    className="flex items-center space-x-2 mx-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition duration-200 text-sm font-medium"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Add First Story</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sub-Category Stories Table */}
-      {showSubCategoryStories && expandedSubCategory && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
-          <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl w-full max-w-5xl max-h-[95vh] overflow-y-auto shadow-2xl border border-gray-600/50 scrollbar-hide scroll-smooth animate-in slide-in-from-top-4 duration-500 ease-out">
-            <div className="p-6">
-              {/* Header */}
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-white text-2xl font-bold mb-1" style={{ fontFamily: 'Archivo Black' }}>
-                    {expandedSubCategory.title}
-                  </h2>
-                  <p className="text-gray-400 text-sm">
-                    Stories in {expandedSubCategory.category?.title} • {expandedSubCategory.title}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => {
-                      setBrightBoxStoryForm(prev => ({ ...prev, subCategory: expandedSubCategory._id }))
-                      setShowBrightBoxStoryForm(true)
-                      setShowSubCategoryStories(false)
-                    }}
-                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition duration-200 text-sm font-medium"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Add Story</span>
-                  </button>
-                  <button
-                    onClick={() => setShowSubCategoryStories(false)}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition duration-200"
-                  >
-                    <FiX className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Stories Table */}
-              {getStories(expandedSubCategory._id).length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-700/50">
-                        <th className="text-left py-3 px-4 text-gray-400 font-medium">Image</th>
-                        <th className="text-left py-3 px-4 text-gray-400 font-medium">Title</th>
-                        <th className="text-left py-3 px-4 text-gray-400 font-medium">Language Titles</th>
-                        <th className="text-left py-3 px-4 text-gray-400 font-medium">Files</th>
-                        <th className="text-left py-3 px-4 text-gray-400 font-medium">Created</th>
-                        <th className="text-left py-3 px-4 text-gray-400 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {getStories(expandedSubCategory._id).map((story) => (
-                        <tr key={story._id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition duration-200">
-                          <td className="py-3 px-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-green-600/20 to-blue-600/20 rounded-lg overflow-hidden">
-                              {story.image ? (
-                                <img
-                                  src={story.image}
-                                  alt={story.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <FiFile className="w-6 h-6 text-green-400/50" />
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div>
-                              <h4 className="text-white font-medium text-sm">{story.title}</h4>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="space-y-1">
-                              {story.mlTitle && (
-                                <p className="text-gray-400 text-xs">ML: {story.mlTitle}</p>
-                              )}
-                              {story.urTitle && (
-                                <p className="text-gray-400 text-xs">UR: {story.urTitle}</p>
-                              )}
-                              {story.hinTitle && (
-                                <p className="text-gray-400 text-xs">HIN: {story.hinTitle}</p>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-1">
-                              <FiFile className="w-4 h-4 text-green-400" />
-                              <span className="text-gray-400 text-sm">
-                                {[story.enFile, story.mlFile, story.urFile, story.hinFile].filter(Boolean).length}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="text-gray-400 text-sm">
-                              {new Date(story.createdAt).toLocaleDateString()}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => {
-                                  setExpandedStory(story)
-                                  setShowSubCategoryStories(false)
-                                }}
-                                className="p-1 text-gray-400 hover:text-green-400 rounded transition duration-200"
-                                title="View Details"
-                              >
-                                <FiEye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  editBrightBoxStory(story)
-                                  setShowSubCategoryStories(false)
-                                }}
-                                className="p-1 text-gray-400 hover:text-purple-400 rounded transition duration-200"
-                                title="Edit Story"
-                              >
-                                <FiEdit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => deleteBrightBoxStory(story._id)}
-                                className="p-1 text-gray-400 hover:text-red-400 rounded transition duration-200"
-                                title="Delete Story"
-                              >
-                                <FiTrash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FiFile className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-white text-lg font-medium mb-2">No Stories Found</h3>
-                  <p className="text-gray-400 text-sm mb-6">This sub-category doesn't have any stories yet</p>
-                  <button
-                    onClick={() => {
-                      setBrightBoxStoryForm(prev => ({ ...prev, subCategory: expandedSubCategory._id }))
-                      setShowBrightBoxStoryForm(true)
-                      setShowSubCategoryStories(false)
-                    }}
                     className="flex items-center space-x-2 mx-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition duration-200 text-sm font-medium"
                   >
                     <FiPlus className="w-4 h-4" />
@@ -1902,140 +1483,6 @@ const BrightBox = () => {
         </div>
       )}
 
-      {/* Bright Box Sub Form Modal */}
-      {showBrightBoxSubForm && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
-          <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-600/50 scrollbar-hide scroll-smooth scroll-indicator">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
-                {editingBrightBoxSub ? 'Edit Bright Box Sub' : 'Add New Bright Box Sub'}
-              </h2>
-              <button
-                onClick={resetBrightBoxSubForm}
-                className="text-gray-400 hover:text-white transition duration-200"
-              >
-                <FiX className="w-6 h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={editingBrightBoxSub ? updateBrightBoxSub : createBrightBoxSub} className="space-y-4">
-              {/* Category Selection */}
-              <div>
-                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>Category *</label>
-                <CustomDropdown
-                  options={brightBoxes.map((brightBox) => ({
-                    value: brightBox._id,
-                    label: brightBox.title
-                  }))}
-                  value={brightBoxSubForm.category}
-                  onChange={(value) => setBrightBoxSubForm({ ...brightBoxSubForm, category: value })}
-                  placeholder="Select category..."
-                  className="w-full"
-                />
-              </div>
-
-              {/* Title */}
-              <div>
-                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>Title *</label>
-                <input
-                  type="text"
-                  value={brightBoxSubForm.title}
-                  onChange={(e) => setBrightBoxSubForm({ ...brightBoxSubForm, title: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400"
-                  placeholder="Enter title"
-                />
-              </div>
-
-              {/* ML Title */}
-              <div>
-                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>ML Title</label>
-                <input
-                  type="text"
-                  value={brightBoxSubForm.mlTitle}
-                  onChange={(e) => setBrightBoxSubForm({ ...brightBoxSubForm, mlTitle: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400"
-                  placeholder="Enter Malayalam title"
-                />
-              </div>
-
-              {/* UR Title */}
-              <div>
-                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>UR Title</label>
-                <input
-                  type="text"
-                  value={brightBoxSubForm.urTitle}
-                  onChange={(e) => setBrightBoxSubForm({ ...brightBoxSubForm, urTitle: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400"
-                  placeholder="Enter Urdu title"
-                />
-              </div>
-
-              {/* HN Title */}
-              <div>
-                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>HN Title</label>
-                <input
-                  type="text"
-                  value={brightBoxSubForm.hnTitle}
-                  onChange={(e) => setBrightBoxSubForm({ ...brightBoxSubForm, hnTitle: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400"
-                  placeholder="Enter Hindi title"
-                />
-              </div>
-
-              {/* Image Upload */}
-              <div>
-                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>Image</label>
-                <div className="relative w-full h-10 bg-gray-800/50 border border-gray-600 rounded-xl overflow-hidden">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      setFileInputs({ ...fileInputs, subImage: e.target })
-                      setSelectedFileNames({ ...selectedFileNames, subImage: e.target.files[0]?.name || '' })
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <div className="flex items-center h-full px-3">
-                    <div className="mr-3 py-1.5 px-3 bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold rounded-lg transition duration-200">
-                      Choose Image
-                    </div>
-                    <span className="text-gray-400 text-xs">
-                      {selectedFileNames.subImage || 'No file chosen'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Buttons */}
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={resetBrightBoxSubForm}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-xl transition duration-200 font-semibold text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-xl transition duration-200 font-semibold flex items-center justify-center space-x-2 text-sm"
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  ) : (
-                    <>
-                      <FiPlus className="w-4 h-4" />
-                      <span>{editingBrightBoxSub ? 'Update' : 'Create'}</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Bright Box Story Form Modal */}
       {showBrightBoxStoryForm && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
@@ -2053,17 +1500,17 @@ const BrightBox = () => {
             </div>
 
             <form onSubmit={editingBrightBoxStory ? updateBrightBoxStory : createBrightBoxStory} className="space-y-4">
-              {/* Sub Category Selection */}
+              {/* Category Selection */}
               <div>
-                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>Sub Category *</label>
+                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>Category *</label>
                 <CustomDropdown
-                  options={brightBoxSubs.map((sub) => ({
-                    value: sub._id,
-                    label: `${sub.title} (${sub.category?.title})`
+                  options={brightBoxes.map((cat) => ({
+                    value: cat._id,
+                    label: cat.title
                   }))}
-                  value={brightBoxStoryForm.subCategory}
-                  onChange={(value) => setBrightBoxStoryForm({ ...brightBoxStoryForm, subCategory: value })}
-                  placeholder="Select sub category..."
+                  value={brightBoxStoryForm.category}
+                  onChange={(value) => setBrightBoxStoryForm({ ...brightBoxStoryForm, category: value })}
+                  placeholder="Select category..."
                   className="w-full"
                 />
               </div>
@@ -2290,8 +1737,7 @@ const BrightBox = () => {
                   {selectedBrightBoxStory.mlTitle && <p className="text-gray-400">{selectedBrightBoxStory.mlTitle}</p>}
                 </div>
                 <div className="text-sm text-gray-400">
-                  <div>Category: {selectedBrightBoxStory.subCategory?.category?.title}</div>
-                  <div>Sub-Category: {selectedBrightBoxStory.subCategory?.title}</div>
+                  <div>Category: {selectedBrightBoxStory.category?.title}</div>
                 </div>
               </div>
 

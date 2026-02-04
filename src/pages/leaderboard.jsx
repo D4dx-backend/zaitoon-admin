@@ -210,7 +210,7 @@ function Leaderboard() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-white">
-                              {entry.userName || entry.user?.name || 'Unknown'}
+                              {entry.userName || entry.user?.name || ''}
                             </div>
                             <div className="text-sm text-gray-400">
                               {entry.userEmail || entry.user?.email || ''}
