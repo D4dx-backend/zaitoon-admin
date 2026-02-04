@@ -223,7 +223,7 @@ function QuizAttempts() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-white">
-                              {attendee.userName || 'Unknown'}
+                              {attendee.userName || ''}
                             </div>
                             <div className="text-sm text-gray-400">
                               {attendee.userEmail || ''}

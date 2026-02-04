@@ -5,10 +5,14 @@ function QuizTest() {
   // API_BASE_URL from env (likely includes /api already, like other pages)
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
   
-  const [step, setStep] = useState('login') // login, quiz, result
+  const [step, setStep] = useState('login') // login, details, quiz, result
   const [email, setEmail] = useState('')
   const [userToken, setUserToken] = useState('')
   const [user, setUser] = useState(null)
+  // Attendee details for leaderboard (collected before quiz)
+  const [attendeeName, setAttendeeName] = useState('')
+  const [attendeeEmail, setAttendeeEmail] = useState('')
+  const [attendeeClass, setAttendeeClass] = useState('')
   const [quiz, setQuiz] = useState(null)
   const [answers, setAnswers] = useState({})
   const [durations, setDurations] = useState({})
@@ -23,10 +27,13 @@ function QuizTest() {
     const token = localStorage.getItem('userToken')
     const userData = localStorage.getItem('userData')
     if (token && userData) {
+      const u = JSON.parse(userData)
       setUserToken(token)
-      setUser(JSON.parse(userData))
-      setStep('quiz')
-      loadQuiz()
+      setUser(u)
+      setAttendeeName(u.name || '')
+      setAttendeeEmail(u.email || '')
+      setAttendeeClass(u.class || '')
+      setStep('details')
     }
   }, [])
 
@@ -38,12 +45,15 @@ function QuizTest() {
     try {
       const response = await axios.post(`${API_BASE_URL}/users/login`, { email })
       if (response.data.success) {
+        const u = response.data.user
         setUserToken(response.data.token)
-        setUser(response.data.user)
+        setUser(u)
+        setAttendeeName(u.name || '')
+        setAttendeeEmail(u.email || email)
+        setAttendeeClass(u.class || '')
         localStorage.setItem('userToken', response.data.token)
         localStorage.setItem('userData', JSON.stringify(response.data.user))
-        setStep('quiz')
-        loadQuiz()
+        setStep('details')
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed')
@@ -122,11 +132,14 @@ function QuizTest() {
         `${API_BASE_URL}/quizzes/${quiz._id}/attempt`,
         {
           language,
-          answers: answersArray
+          answers: answersArray,
+          name: attendeeName.trim(),
+          email: attendeeEmail.trim(),
+          class: attendeeClass.trim()
         },
         {
           headers: {
-            'Authorization': `Bearer ${userToken}`,
+            ...(userToken ? { 'Authorization': `Bearer ${userToken}` } : {}),
             'Content-Type': 'application/json'
           }
         }
@@ -150,10 +163,38 @@ function QuizTest() {
     localStorage.removeItem('userData')
     setUserToken('')
     setUser(null)
+    setAttendeeName('')
+    setAttendeeEmail('')
+    setAttendeeClass('')
     setQuiz(null)
     setAnswers({})
     setAttemptResult(null)
     setStep('login')
+  }
+
+  const handleStartQuiz = async () => {
+    if (!attendeeName.trim()) {
+      setError('Please enter your name')
+      return
+    }
+    if (!attendeeEmail.trim()) {
+      setError('Please enter your email')
+      return
+    }
+    if (!attendeeClass.trim()) {
+      setError('Please enter your class')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await loadQuiz()
+      setStep('quiz')
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load quiz')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (step === 'login') {
@@ -183,6 +224,65 @@ function QuizTest() {
               {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 'details') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <h1 className="text-3xl font-bold text-white mb-2 text-center">Your details</h1>
+          <p className="text-white/70 text-sm text-center mb-6">These will appear on the leaderboard</p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-white/90 mb-2">Name</label>
+              <input
+                type="text"
+                value={attendeeName}
+                onChange={(e) => setAttendeeName(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="Your name"
+              />
+            </div>
+            <div>
+              <label className="block text-white/90 mb-2">Email</label>
+              <input
+                type="email"
+                value={attendeeEmail}
+                onChange={(e) => setAttendeeEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="your@email.com"
+              />
+            </div>
+            <div>
+              <label className="block text-white/90 mb-2">Class</label>
+              <input
+                type="text"
+                value={attendeeClass}
+                onChange={(e) => setAttendeeClass(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="e.g. 10A"
+              />
+            </div>
+            {error && <p className="text-red-300 text-sm">{error}</p>}
+            <button
+              type="button"
+              onClick={handleStartQuiz}
+              disabled={loading}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
+            >
+              {loading ? 'Loading quiz...' : 'Start Quiz'}
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full bg-white/20 hover:bg-white/30 text-white font-medium py-2 rounded-lg transition"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     )
