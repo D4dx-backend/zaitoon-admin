@@ -13,6 +13,7 @@ function QuizTest() {
   const [attendeeName, setAttendeeName] = useState('')
   const [attendeeEmail, setAttendeeEmail] = useState('')
   const [attendeeClass, setAttendeeClass] = useState('')
+  const [attendeePhone, setAttendeePhone] = useState('')
   const [quiz, setQuiz] = useState(null)
   const [answers, setAnswers] = useState({})
   const [durations, setDurations] = useState({})
@@ -33,6 +34,7 @@ function QuizTest() {
       setAttendeeName(u.name || '')
       setAttendeeEmail(u.email || '')
       setAttendeeClass(u.class || '')
+      setAttendeePhone(u.phone || '')
       setStep('details')
     }
   }, [])
@@ -51,6 +53,7 @@ function QuizTest() {
         setAttendeeName(u.name || '')
         setAttendeeEmail(u.email || email)
         setAttendeeClass(u.class || '')
+        setAttendeePhone(u.phone || '')
         localStorage.setItem('userToken', response.data.token)
         localStorage.setItem('userData', JSON.stringify(response.data.user))
         setStep('details')
@@ -135,7 +138,8 @@ function QuizTest() {
           answers: answersArray,
           name: attendeeName.trim(),
           email: attendeeEmail.trim(),
-          class: attendeeClass.trim()
+          class: attendeeClass.trim(),
+          phone: attendeePhone.trim()
         },
         {
           headers: {
@@ -166,6 +170,7 @@ function QuizTest() {
     setAttendeeName('')
     setAttendeeEmail('')
     setAttendeeClass('')
+    setAttendeePhone('')
     setQuiz(null)
     setAnswers({})
     setAttemptResult(null)
@@ -264,6 +269,16 @@ function QuizTest() {
                 onChange={(e) => setAttendeeClass(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
                 placeholder="e.g. 10A"
+              />
+            </div>
+            <div>
+              <label className="block text-white/90 mb-2">Phone number</label>
+              <input
+                type="tel"
+                value={attendeePhone}
+                onChange={(e) => setAttendeePhone(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="e.g. +91 9876543210"
               />
             </div>
             {error && <p className="text-red-300 text-sm">{error}</p>}
