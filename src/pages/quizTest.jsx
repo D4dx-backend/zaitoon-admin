@@ -190,6 +190,10 @@ function QuizTest() {
       setError('Please enter your class')
       return
     }
+    if (!attendeePhone.trim()) {
+      setError('Please enter your phone number')
+      return
+    }
     setError('')
     setLoading(true)
     try {
@@ -272,13 +276,14 @@ function QuizTest() {
               />
             </div>
             <div>
-              <label className="block text-white/90 mb-2">Phone number</label>
+              <label className="block text-white/90 mb-2">Phone number <span className="text-red-300">*</span></label>
               <input
                 type="tel"
                 value={attendeePhone}
                 onChange={(e) => setAttendeePhone(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
                 placeholder="e.g. +91 9876543210"
+                required
               />
             </div>
             {error && <p className="text-red-300 text-sm">{error}</p>}
