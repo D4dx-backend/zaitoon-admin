@@ -23,8 +23,8 @@ function Leaderboard() {
   const [loading, setLoading] = useState(false)
   const [fromDate, setFromDate] = useState(today())
   const [toDate, setToDate] = useState(today())
-  const [viewMode, setViewMode] = useState('daily') // 'daily' | 'total'
-  const [totalAllTime, setTotalAllTime] = useState(false) // when Total: ignore date range
+  const [viewMode, setViewMode] = useState('daily') // 'daily' | 'total' | 'byEmail'
+  const [totalAllTime, setTotalAllTime] = useState(false)
   const [sortOption, setSortOption] = useState('score-desc')
 
   useEffect(() => {
@@ -40,18 +40,21 @@ function Leaderboard() {
 
   const fetchData = async (from = fromDate, to = toDate, mode = viewMode, allTime = totalAllTime) => {
     const isTotal = mode === 'total'
-    if (!isTotal && (!from || !to)) return
-    if (isTotal && !allTime && (!from || !to || from > to)) return
+    const isByEmail = mode === 'byEmail'
+    if (!isTotal && !isByEmail && (!from || !to)) return
+    if ((isTotal || isByEmail) && !allTime && (!from || !to || from > to)) return
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
       let url
-      if (isTotal) {
-        if (allTime) {
-          url = `${API_BASE}/quizzes/leaderboard/total`
-        } else {
-          url = `${API_BASE}/quizzes/leaderboard/total?startDate=${from}&endDate=${to}`
-        }
+      if (isByEmail) {
+        url = allTime
+          ? `${API_BASE}/quizzes/leaderboard/by-email`
+          : `${API_BASE}/quizzes/leaderboard/by-email?startDate=${from}&endDate=${to}`
+      } else if (isTotal) {
+        url = allTime
+          ? `${API_BASE}/quizzes/leaderboard/total`
+          : `${API_BASE}/quizzes/leaderboard/total?startDate=${from}&endDate=${to}`
       } else {
         url = `${API_BASE}/quizzes/leaderboard/daily?date=${from === to ? from : to}`
       }
@@ -60,7 +63,25 @@ function Leaderboard() {
       })
       if (response.data.success) {
         const data = response.data.data
-        if (isTotal) {
+        if (isByEmail) {
+          const list = (data.leaderboard || []).map((e, i) => ({
+            ...e,
+            rank: i + 1,
+            score: e.totalScore,
+            userEmail: e.email,
+            userClass: e.userClass ?? e.user?.class ?? 'N/A',
+            userPhone: e.userPhone ?? '—',
+            percentage: null
+          }))
+          setLeaderboard(list)
+          setQuiz({
+            title: 'Leaderboard by email (combined score)',
+            mlTitle: '',
+            quizDate: allTime ? 'All time' : `${from} to ${to}`,
+            isTotal: true,
+            isByEmail: true
+          })
+        } else if (isTotal) {
           const list = (data.leaderboard || []).map((e, i) => ({
             ...e,
             rank: i + 1,
@@ -97,19 +118,21 @@ function Leaderboard() {
   }
 
   const handleApplyRange = () => {
-    if (viewMode === 'total' && totalAllTime) {
-      fetchData(fromDate, toDate, 'total', true)
+    if ((viewMode === 'total' || viewMode === 'byEmail') && totalAllTime) {
+      fetchData(fromDate, toDate, viewMode, true)
     } else if (fromDate && toDate && fromDate <= toDate) {
       fetchData()
     }
   }
 
-  const handleTotalClick = () => {
-    const next = viewMode === 'total' ? 'daily' : 'total'
-    setViewMode(next)
-    if (next === 'total') {
-      if (totalAllTime) fetchData(fromDate, toDate, 'total', true)
-      else if (fromDate && toDate) fetchData(fromDate, toDate, 'total', false)
+  const setMode = (mode) => {
+    setViewMode(mode)
+    if (mode === 'byEmail') {
+      setTotalAllTime(true) // default to All time so full results show
+      fetchData(fromDate, toDate, 'byEmail', true)
+    } else if (mode === 'total') {
+      setTotalAllTime(true) // default to All time so full results show
+      fetchData(fromDate, toDate, 'total', true)
     } else if (fromDate && toDate) {
       fetchData(fromDate, toDate, 'daily')
     }
@@ -118,9 +141,9 @@ function Leaderboard() {
   const handleAllTimeChange = (e) => {
     const checked = e.target.checked
     setTotalAllTime(checked)
-    if (viewMode === 'total') {
-      if (checked) fetchData(fromDate, toDate, 'total', true)
-      else if (fromDate && toDate) fetchData(fromDate, toDate, 'total', false)
+    if (viewMode === 'total' || viewMode === 'byEmail') {
+      if (checked) fetchData(fromDate, toDate, viewMode, true)
+      else if (fromDate && toDate) fetchData(fromDate, toDate, viewMode, false)
     }
   }
 
@@ -199,13 +222,19 @@ function Leaderboard() {
                 Apply
               </button>
               <button
-                onClick={handleTotalClick}
+                onClick={() => setMode('total')}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${viewMode === 'total' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
               >
                 <FiAward className="w-5 h-5" />
                 <span>Total</span>
               </button>
-              {viewMode === 'total' && (
+              <button
+                onClick={() => setMode('byEmail')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${viewMode === 'byEmail' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+              >
+                <span>By email</span>
+              </button>
+              {(viewMode === 'total' || viewMode === 'byEmail') && (
                 <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                   <input
                     type="checkbox"
@@ -243,7 +272,12 @@ function Leaderboard() {
               <p className="text-sm text-gray-500">
                 Date: {formatDate(quiz.quizDate)}
               </p>
-              {quiz.isTotal && (
+              {quiz.isByEmail && (
+                <p className="text-sm text-gray-400 mt-2">
+                  One row per email — total combined score from all daily attempts. Each email can attempt only once per day.
+                </p>
+              )}
+              {quiz.isTotal && !quiz.isByEmail && (
                 <p className="text-sm text-gray-400 mt-2">
                   One row per user — score and time are combined across all their attempts. Use the Attempts column to see how many tries each user had.
                 </p>
@@ -264,13 +298,16 @@ function Leaderboard() {
           ) : leaderboard.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-400">
-                {viewMode === 'total'
+                {(viewMode === 'total' || viewMode === 'byEmail')
                   ? "No attempts in this date range. Try 'All time' or a wider range."
                   : 'No attempts yet. Be the first to take the quiz!'}
               </p>
             </div>
           ) : (
             <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+              <div className="px-4 py-2 bg-gray-700/50 text-sm text-gray-400">
+                Showing {sortedLeaderboard.length} {viewMode === 'byEmail' ? 'email(s)' : viewMode === 'total' ? 'user(s)' : 'attempt(s)'}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-700">
@@ -278,6 +315,7 @@ function Leaderboard() {
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Class</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Phone</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Score</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Correct</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
@@ -320,6 +358,9 @@ function Leaderboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                           {entry.userClass || entry.user?.class || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {entry.userPhone || entry.user?.phone || '—'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-lg font-bold text-purple-400">
