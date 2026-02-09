@@ -64,6 +64,21 @@ function Dashboard() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
+  // Sort episodes by leading number in title (ascending: 01, 02, 03, ...)
+  const sortEpisodesAsc = (episodes) => {
+    if (!Array.isArray(episodes) || episodes.length === 0) return []
+    const key = (ep) => {
+      const t = (ep.title || '').trim()
+      const m = t.match(/^\d+/)
+      return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER
+    }
+    return [...episodes].sort((a, b) => {
+      const ka = key(a), kb = key(b)
+      if (ka !== kb) return ka - kb
+      return (a.title || '').localeCompare(b.title || '', undefined, { numeric: true })
+    })
+  }
+
   // Check if any popup/modal is currently open (optimized - no logging)
   const isAnyPopupOpen = () => {
     return expandedCard !== null || expandedSingleStory !== null || expandedVideo !== null || showEpisodeDetails
@@ -570,10 +585,10 @@ function Dashboard() {
                                 </div>
                               </div>
 
-                              {/* Episodes List */}
+                              {/* Episodes List (sorted ascending by episode number in title) */}
                               {selectedSeason.episodes && selectedSeason.episodes.length > 0 ? (
                                 <div className="space-y-2">
-                                  {selectedSeason.episodes.map((episode) => (
+                                  {sortEpisodesAsc(selectedSeason.episodes).map((episode) => (
                                     <div key={episode._id} className="bg-gray-700/20 backdrop-blur-sm rounded-lg p-3 cursor-pointer hover:bg-gray-700/30 transition duration-200"
                                          onClick={() => handleEpisodeSelect(episode)}>
                                       <div className="flex items-center justify-between">

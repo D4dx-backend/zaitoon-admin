@@ -8,7 +8,8 @@ import {
   FiX,
   FiSave,
   FiEdit3,
-  FiTrash2
+  FiTrash2,
+  FiMenu
 } from 'react-icons/fi'
 import { HiCalendar } from 'react-icons/hi'
 import gradient from '../assets/gradiantRight.png'
@@ -34,6 +35,7 @@ function Stories() {
   const [selectedSeasonId, setSelectedSeasonId] = useState(null)
   const [selectedEpisode, setSelectedEpisode] = useState(null)
   const [showEpisodeDetails, setShowEpisodeDetails] = useState(false)
+  const [dragEpisodeId, setDragEpisodeId] = useState(null)
   
   // Form data
   const [storyForm, setStoryForm] = useState({
@@ -91,6 +93,21 @@ function Stories() {
     hinBanner: null,
     music: null
   })
+
+  // Sort episodes by leading number in title (ascending: 01, 02, 03, ...)
+  const sortEpisodesAsc = (episodes) => {
+    if (!Array.isArray(episodes) || episodes.length === 0) return []
+    const key = (ep) => {
+      const t = (ep.title || '').trim()
+      const m = t.match(/^\d+/)
+      return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER
+    }
+    return [...episodes].sort((a, b) => {
+      const ka = key(a), kb = key(b)
+      if (ka !== kb) return ka - kb
+      return (a.title || '').localeCompare(b.title || '', undefined, { numeric: true })
+    })
+  }
 
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -459,22 +476,40 @@ function Stories() {
   const endIndex = Math.min(totalStories, currentPage * STORIES_PER_PAGE)
 
   // Fetch single story details
-  const fetchStoryDetails = async (storyId) => {
+  const fetchStoryDetails = async (storyId, keepSeasonId = null) => {
     try {
       const response = await fetch(`${API_BASE}/stories/${storyId}`)
       const data = await response.json()
       if (data.success) {
         setSelectedStory(data.data)
-        // Auto-select first season if available
-        if (data.data.seasons && data.data.seasons.length > 0) {
-          setSelectedSeasonId(data.data.seasons[0]._id)
-        }
+        if (keepSeasonId) setSelectedSeasonId(keepSeasonId)
+        else if (data.data.seasons?.length > 0) setSelectedSeasonId(data.data.seasons[0]._id)
       } else {
         showModal('error', 'Failed to fetch story details')
       }
     } catch (error) {
       console.error('Error in fetchStoryDetails:', error)
       showModal('error', 'Error fetching story details')
+    }
+  }
+
+  // Reorder episodes (after drag-drop), then refetch story
+  const reorderEpisodes = async (newOrderedIds) => {
+    const storyId = selectedStory?._id
+    const seasonId = selectedSeasonId
+    if (!storyId || !seasonId || !newOrderedIds?.length) return
+    try {
+      const token = localStorage.getItem('adminToken')
+      const res = await fetch(`${API_BASE}/stories/${storyId}/seasons/${seasonId}/episodes/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ episodeIds: newOrderedIds })
+      })
+      const data = await res.json()
+      if (data.success) fetchStoryDetails(storyId, seasonId)
+      else showModal('error', data.message || 'Failed to reorder')
+    } catch (e) {
+      showModal('error', 'Failed to reorder episodes')
     }
   }
 
@@ -1083,14 +1118,44 @@ function Stories() {
                               </div>
                             </div>
 
-                            {/* Episodes List */}
+                            {/* Episodes List (drag handle to reorder) */}
                                             {selectedSeason.episodes && selectedSeason.episodes.length > 0 ? (
                                   <div className="space-y-2">
                                                 {selectedSeason.episodes.map((episode) => (
-                                                  <div key={episode._id} className="bg-gray-700/20 backdrop-blur-sm rounded-lg p-3 cursor-pointer hover:bg-gray-700/30 transition duration-200"
-                                                       onClick={() => handleEpisodeSelect(episode)}>
-                                        <div className="flex items-center justify-between">
-                                          <div className="flex items-center space-x-3">
+                                                  <div
+                                                    key={episode._id}
+                                                    data-episode-id={episode._id}
+                                                    draggable
+                                                    onDragStart={(e) => {
+                                                      e.dataTransfer.setData('text/plain', episode._id)
+                                                      e.dataTransfer.effectAllowed = 'move'
+                                                      setDragEpisodeId(episode._id)
+                                                    }}
+                                                    onDragOver={(e) => e.preventDefault()}
+                                                    onDrop={(e) => {
+                                                      e.preventDefault()
+                                                      const toId = e.currentTarget.getAttribute('data-episode-id')
+                                                      const fromId = e.dataTransfer.getData('text/plain')
+                                                      setDragEpisodeId(null)
+                                                      if (!toId || toId === fromId) return
+                                                      const list = selectedSeason.episodes
+                                                      const fromIdx = list.findIndex((ep) => String(ep._id) === String(fromId))
+                                                      const toIdx = list.findIndex((ep) => String(ep._id) === String(toId))
+                                                      if (fromIdx === -1 || toIdx === -1) return
+                                                      const newList = [...list]
+                                                      const [removed] = newList.splice(fromIdx, 1)
+                                                      newList.splice(toIdx, 0, removed)
+                                                      reorderEpisodes(newList.map((ep) => ep._id))
+                                                    }}
+                                                    onDragEnd={() => setDragEpisodeId(null)}
+                                                    className={`bg-gray-700/20 backdrop-blur-sm rounded-lg p-3 cursor-pointer hover:bg-gray-700/30 transition duration-200 flex items-center gap-2 ${dragEpisodeId === episode._id ? 'opacity-50' : ''}`}
+                                                    onClick={() => handleEpisodeSelect(episode)}
+                                                  >
+                                                    <span className="text-gray-500 shrink-0 cursor-grab active:cursor-grabbing" onClick={(e) => e.stopPropagation()} title="Drag to reorder">
+                                                      <FiMenu className="w-4 h-4" />
+                                                    </span>
+                                        <div className="flex items-center justify-between flex-1 min-w-0">
+                                          <div className="flex items-center space-x-3 min-w-0">
                                             {episode.coverImage && (
                                               <img
                                                 src={episode.coverImage}
