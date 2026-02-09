@@ -15,7 +15,8 @@ import {
   TrophyIcon,
   Cog6ToothIcon,
   ListBulletIcon,
-  BellAlertIcon
+  BellAlertIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline'
 import logo from '../assets/logo.png'
 import dxLogo from '../assets/dxLogoWhite.png'
@@ -135,6 +136,14 @@ function Sidebar() {
           >
             <PhotoIcon className={`w-5 h-5 ${isActive('/banners') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
             <span className="text-sm font-medium">Banners</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/payment-banner')}
+            className={getButtonClasses('/payment-banner')}
+          >
+            <CreditCardIcon className={`w-5 h-5 ${isActive('/payment-banner') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+            <span className="text-sm font-medium">Payment Banner</span>
           </button>
 
           <button

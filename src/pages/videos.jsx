@@ -25,6 +25,10 @@ function Videos() {
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null })
   const [selectedVideo, setSelectedVideo] = useState(null)
   const [expandedCard, setExpandedCard] = useState(null)
+  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [categoryVideos, setCategoryVideos] = useState([])
+  const [categoryVideosLoading, setCategoryVideosLoading] = useState(false)
+  const [draggingVideoId, setDraggingVideoId] = useState(null)
   const [showCategoryTable, setShowCategoryTable] = useState(false)
   
   // Form states
@@ -344,6 +348,24 @@ function Videos() {
     }
   }
 
+  // Fetch videos for a specific category (used in category modal)
+  const fetchVideosByCategory = async (categoryId) => {
+    setCategoryVideosLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/videos/category/${categoryId}?page=1&limit=100`)
+      const data = await response.json()
+      if (data.success) {
+        setCategoryVideos(data.data.videos || [])
+      } else {
+        showModal('error', data.message || 'Failed to fetch videos for this category')
+      }
+    } catch (error) {
+      showModal('error', 'Error fetching videos for this category')
+    } finally {
+      setCategoryVideosLoading(false)
+    }
+  }
+
   // Handle card expand
   const handleCardExpand = (videoId) => {
     setExpandedCard(videoId)
@@ -354,6 +376,73 @@ function Videos() {
   const handleCardCollapse = () => {
     setExpandedCard(null)
     setSelectedVideo(null)
+  }
+
+  // Open category modal and load its videos
+  const openCategoryModal = (category) => {
+    setSelectedCategory(category)
+    fetchVideosByCategory(category._id)
+  }
+
+  // Close category modal
+  const closeCategoryModal = () => {
+    setSelectedCategory(null)
+    setCategoryVideos([])
+    setDraggingVideoId(null)
+  }
+
+  // Save new order for videos in a category (backend + local state are already in sync)
+  const saveCategoryOrder = async (videosInOrder) => {
+    if (!selectedCategory) return
+    try {
+      await fetch(`${API_BASE}/videos/category/${selectedCategory._id}/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({
+          videos: videosInOrder.map((v) => v._id)
+        })
+      })
+      // No toast here – ordering is a quiet background save
+    } catch (error) {
+      showModal('error', 'Error saving new order for videos in this category')
+    }
+  }
+
+  // Drag and drop handlers for videos inside category modal
+  const handleVideoDragStart = (e, videoId) => {
+    setDraggingVideoId(videoId)
+  }
+
+  const handleVideoDragOver = (e, targetId) => {
+    e.preventDefault()
+    if (!draggingVideoId || draggingVideoId === targetId) return
+
+    setCategoryVideos((prev) => {
+      const fromIndex = prev.findIndex((v) => v._id === draggingVideoId)
+      const toIndex = prev.findIndex((v) => v._id === targetId)
+      if (fromIndex === -1 || toIndex === -1) return prev
+
+      const updated = [...prev]
+      const [moved] = updated.splice(fromIndex, 1)
+      updated.splice(toIndex, 0, moved)
+      return updated
+    })
+  }
+
+  const handleVideoDrop = (e) => {
+    e.preventDefault()
+    // Persist the new order to backend using current state
+    if (categoryVideos.length > 0) {
+      saveCategoryOrder(categoryVideos)
+    }
+    setDraggingVideoId(null)
+  }
+
+  const handleVideoDragEnd = () => {
+    setDraggingVideoId(null)
   }
 
   // Edit handlers
@@ -459,11 +548,12 @@ function Videos() {
               </div>
              ) : (
                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-4">
-                 {/* Category Cards - Limited Display */}
-                      {categories.slice(0, 5).map((category) => (
+                {/* Category Cards - Limited Display */}
+                     {categories.slice(0, 5).map((category) => (
                    <div 
                      key={category._id}
-                     className="relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-gray-600 hover:scale-105 hover:shadow-2xl"
+                    className="relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 border-transparent hover:border-gray-600 hover:scale-105 hover:shadow-2xl"
+                    onClick={() => openCategoryModal(category)}
                    >
                      {/* Category Image */}
                      <div className="relative aspect-square overflow-hidden">
@@ -679,6 +769,184 @@ function Videos() {
                       <FiPlus className="w-4 h-4" />
                       <span>Add Category</span>
                     </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Category Videos Modal (when clicking a category card) */}
+        {selectedCategory && (
+          <div 
+            className="fixed inset-0 bg-black/40 backdrop-blur-md z-[9999] flex items-center justify-center p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                closeCategoryModal()
+              }
+            }}
+          >
+            <div 
+              className="bg-gray-900/90 backdrop-blur-lg rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-700/60 scrollbar-hide scroll-smooth"
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+              }}
+            >
+              <div className="p-6">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center space-x-4">
+                    {selectedCategory.image && (
+                      <img
+                        src={selectedCategory.image}
+                        alt={selectedCategory.title}
+                        className="w-14 h-14 rounded-xl object-cover border border-gray-700"
+                      />
+                    )}
+                    <div>
+                      <h2 
+                        className="text-white text-2xl font-bold mb-1"
+                        style={{ fontFamily: 'Archivo Black' }}
+                      >
+                        {selectedCategory.title}
+                      </h2>
+                      <p className="text-gray-400 text-sm">
+                        Drag & drop to reorder videos inside this category
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={closeCategoryModal}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition duration-200"
+                  >
+                    <FiX className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Videos list inside category */}
+                {categoryVideosLoading ? (
+                  <div className="flex justify-center items-center py-16">
+                    <div className="text-white text-base">Loading videos...</div>
+                  </div>
+                ) : categoryVideos.length === 0 ? (
+                  <div className="text-center py-16">
+                    <p className="text-gray-400 text-base mb-4">
+                      No videos found in this category.
+                    </p>
+                    <p className="text-gray-500 text-sm">
+                      Add new videos from the main <span className="font-semibold text-gray-300">Videos</span> section.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {categoryVideos.map((video) => (
+                      <div
+                        key={video._id}
+                        draggable
+                        onDragStart={(e) => handleVideoDragStart(e, video._id)}
+                        onDragOver={(e) => handleVideoDragOver(e, video._id)}
+                        onDrop={handleVideoDrop}
+                        onDragEnd={handleVideoDragEnd}
+                        className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-150 bg-gray-900/80 ${
+                          draggingVideoId === video._id
+                            ? 'border-purple-500 bg-purple-500/10 scale-[1.01]'
+                            : 'border-gray-700 hover:border-purple-500/70 hover:bg-gray-800/80'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {/* Drag handle */}
+                          <div className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                            >
+                              <path d="M10 4h.01M14 4h.01M10 9h.01M14 9h.01M10 14h.01M14 14h.01M10 19h.01M14 19h.01" />
+                            </svg>
+                          </div>
+
+                          {/* Thumbnail / icon */}
+                          <div className="w-16 h-10 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                            {video.video ? (
+                              <video
+                                src={video.video}
+                                className="w-full h-full object-cover"
+                                muted
+                              />
+                            ) : (
+                              <FiVideo className="w-5 h-5 text-gray-500" />
+                            )}
+                          </div>
+
+                          {/* Title + meta */}
+                          <div>
+                            <p className="text-white text-sm font-semibold line-clamp-1">
+                              {video.title}
+                            </p>
+                            <div className="flex items-center space-x-2 text-xs text-gray-400 mt-1">
+                              {video.language && (
+                                <span>{video.language}</span>
+                              )}
+                              {video.createdAt && (
+                                <>
+                                  <span className="text-gray-600">•</span>
+                                  <span>
+                                    {new Date(video.createdAt).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quick actions (edit / delete uses existing handlers) */}
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              // Reuse existing edit logic and close the category modal
+                              editVideo(video)
+                              closeCategoryModal()
+                            }}
+                            className="p-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg transition duration-150"
+                            title="Edit video"
+                          >
+                            <FiEdit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              showModal(
+                                'confirmation',
+                                'Are you sure you want to delete this video?',
+                                () => {
+                                  deleteVideo(video._id)
+                                  // Also remove from local list so UI updates immediately
+                                  setCategoryVideos((prev) =>
+                                    prev.filter((v) => v._id !== video._id)
+                                  )
+                                }
+                              )
+                            }}
+                            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition duration-150"
+                            title="Delete video"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
