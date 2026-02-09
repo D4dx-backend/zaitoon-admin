@@ -190,17 +190,15 @@ function App() {
             <Navigate to="/login" replace />
           } 
         />
-        <Route path="/support" element={<Support />} />
-        <Route
-          path="/notifications"
+        <Route 
+          path="/notifications" 
           element={
-            isAuthenticated ? (
-              <Notifications />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
+            isAuthenticated ? 
+            <Notifications /> : 
+            <Navigate to="/login" replace />
+          } 
         />
+        <Route path="/support" element={<Support />} />
         <Route path="/quiz-test" element={<QuizTest />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>

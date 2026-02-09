@@ -978,13 +978,13 @@ function Dashboard() {
               <div>
                 <h1 
                   className="text-4xl font-bold text-white mb-2"
-            style={{ fontFamily: 'Archivo Black' }}
-          >
-            Admin Dashboard
+                  style={{ fontFamily: 'Archivo Black' }}
+                >
+                  Admin Dashboard
                 </h1>
-        </div>
+              </div>
             </div>
-        </div>
+          </div>
 
           {/* Stories Section */}
           <div className="mb-6">

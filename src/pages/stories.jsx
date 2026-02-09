@@ -46,7 +46,8 @@ function Stories() {
     mlTitle: '',
     mlDescription: '',
     status: 'Active',
-    priority: '',
+    // Priority as string for form, normalized to >= 1.
+    priority: '1',
     hinTitle: '',
     hinDescription: '',
     urTiitle: '',
@@ -125,7 +126,17 @@ function Stories() {
       const response = await fetch(`${API_BASE}/stories?page=${page}&limit=${STORIES_PER_PAGE}`)
       const data = await response.json()
       if (data.success) {
-        const storiesList = data.data?.stories || []
+        const storiesListRaw = data.data?.stories || []
+        // Order: priority 1 = first column first row, 2 = next, etc. No priority = last.
+        const PRIORITY_LAST = 999999
+        const storiesList = [...storiesListRaw].sort((a, b) => {
+          const pa = (Number(a.priority) >= 1) ? Number(a.priority) : PRIORITY_LAST
+          const pb = (Number(b.priority) >= 1) ? Number(b.priority) : PRIORITY_LAST
+          if (pa !== pb) return pa - pb
+          const da = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          const db = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          return db - da
+        })
         const pagination = data.data?.pagination || {}
         const total = pagination.totalStories || 0
         const safeTotalPages = pagination.totalPages || Math.max(1, Math.ceil(total / STORIES_PER_PAGE))
@@ -409,7 +420,7 @@ function Stories() {
       mlTitle: '',
       mlDescription: '',
       status: 'Active',
-      priority: '',
+      priority: '1',
       hinTitle: '',
       hinDescription: '',
       urTiitle: '',
@@ -551,7 +562,10 @@ function Stories() {
       mlTitle: story.mlTitle || '',
       mlDescription: story.mlDescription || '',
       status: story.status || 'Active',
-      priority: story.priority || '',
+      priority: (() => {
+        const n = parseInt(story.priority, 10)
+        return !Number.isNaN(n) && n >= 1 ? String(n) : '1'
+      })(),
       hinTitle: story.hinTitle || '',
       hinDescription: story.hinDescription || '',
       urTiitle: story.urTiitle || '',
@@ -1490,6 +1504,31 @@ function Stories() {
                     className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 resize-none scrollbar-hide scroll-smooth"
                   />
                 </div>
+
+              {/* Priority */}
+              <div>
+                <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Priority</label>
+                <input
+                  type="number"
+                  value={storyForm.priority}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const num = Number(value)
+                    const safe =
+                      !Number.isNaN(num) && num >= 1
+                        ? String(Math.floor(num))
+                        : '1'
+                    setStoryForm({ ...storyForm, priority: safe })
+                  }}
+                  min={1}
+                  step={1}
+                  placeholder="1 for top story, 2 for second, etc."
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                />
+                <p className="text-gray-400 text-xs mt-1">
+                  Use 1 for highest priority, 2 for second, and so on.
+                </p>
+              </div>
 
                 {/* Status */}
                 <div>

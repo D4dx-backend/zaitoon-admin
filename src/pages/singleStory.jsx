@@ -61,7 +61,7 @@ function SingleStoryManagement() {
     readTime: '',
     description: '',
     tag: '',
-    highlight: 'Disable'
+    priority: '1'
   })
   const [files, setFiles] = useState({
     coverImage: null,
@@ -141,6 +141,21 @@ function SingleStoryManagement() {
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
+
+    // Enforce priority >= 1
+    if (name === 'priority') {
+      const num = Number(value)
+      const safe =
+        !Number.isNaN(num) && num >= 1
+          ? String(Math.floor(num))
+          : '1'
+      setFormData(prev => ({
+        ...prev,
+        priority: safe
+      }))
+      return
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (checked ? 'Enable' : 'Disable') : value
@@ -322,7 +337,7 @@ function SingleStoryManagement() {
       readTime: story.readTime || '',
       description: story.description || '',
       tag: story.tag || '',
-      highlight: story.highlight || 'Disable'
+      priority: typeof story.priority === 'number' && story.priority >= 1 ? String(story.priority) : '1'
     })
     setFiles({
       coverImage: null,
@@ -345,7 +360,7 @@ function SingleStoryManagement() {
       readTime: '',
       description: '',
       tag: '',
-      highlight: 'Disable'
+      priority: '1'
     })
     setFiles({
       coverImage: null,
@@ -480,6 +495,24 @@ function SingleStoryManagement() {
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
                 />
+              </div>
+
+              {/* Priority */}
+              <div>
+                <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Priority</label>
+                <input
+                  type="number"
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleInputChange}
+                  min={1}
+                  step={1}
+                  placeholder="1 for top story, 2 for second, etc."
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                />
+                <p className="text-gray-400 text-xs mt-1">
+                  Use 1 for highest priority, 2 for second, and so on.
+                </p>
               </div>
 
               {/* Description */}
@@ -644,45 +677,6 @@ function SingleStoryManagement() {
                   <p className="text-gray-400 text-xs mt-2">Only MP3 format is supported</p>
                 </div>
 
-                {/* Highlight Checkbox */}
-                <div className="flex flex-col justify-center">
-                  <label className="flex items-center space-x-3 cursor-pointer mb-3">
-                    <div className="relative">
-                      <input
-                        type="checkbox"
-                        name="highlight"
-                        checked={formData.highlight === 'Enable'}
-                        onChange={handleInputChange}
-                        className="sr-only"
-                      />
-                      <div className={`w-6 h-6 rounded-lg border-2 transition-all duration-200 ${
-                        formData.highlight === 'Enable' 
-                          ? 'bg-purple-600 border-purple-600' 
-                          : 'bg-gray-800/50 border-gray-600 backdrop-blur-sm'
-                      }`}>
-                        {formData.highlight === 'Enable' && (
-                          <svg 
-                            className="w-4 h-4 text-white absolute top-0.5 left-0.5" 
-                            fill="currentColor" 
-                            viewBox="0 0 20 20"
-                          >
-                            <path 
-                              fillRule="evenodd" 
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
-                              clipRule="evenodd" 
-                            />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-white text-sm font-semibold" style={{ fontFamily: 'Archivo Black' }}>
-                      Highlight Story
-                    </span>
-                  </label>
-                  <p className="text-gray-400 text-xs ml-9">
-                    Enable to feature this story prominently
-                  </p>
-                </div>
               </div>
 
               {/* Submit Buttons */}
