@@ -10,6 +10,7 @@ import Support from './pages/support'
 import BrightBox from './pages/brightBox'
 import Puzzles from './pages/puzzles'
 import Banners from './pages/banners'
+import PaymentBanner from './pages/paymentBanner'
 import Quizzes from './pages/quizzes'
 import Questions from './pages/questions'
 import Leaderboard from './pages/leaderboard'
@@ -139,6 +140,14 @@ function App() {
           element={
             isAuthenticated ? 
             <Banners /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/payment-banner" 
+          element={
+            isAuthenticated ? 
+            <PaymentBanner /> : 
             <Navigate to="/login" replace />
           } 
         />
