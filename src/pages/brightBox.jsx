@@ -94,6 +94,21 @@ const BrightBox = () => {
     }
   }
 
+  // Download PDF: fetch download URL from API then open
+  const handleDownloadBrightBoxStoryPdf = async (storyId, lang = 'en') => {
+    try {
+      const res = await fetch(`${API_BASE}/bright-box-stories/${storyId}/download-pdf?lang=${encodeURIComponent(lang)}`)
+      const data = await res.json()
+      if (data?.success && data?.data?.downloadUrl) {
+        window.open(data.data.downloadUrl, '_blank', 'noopener,noreferrer')
+      } else {
+        showModal('error', data?.message || 'Could not get download link')
+      }
+    } catch (err) {
+      showModal('error', 'Failed to get PDF download link')
+    }
+  }
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -1178,6 +1193,44 @@ const BrightBox = () => {
                     </div>
                   )}
                 </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {expandedStory.enFile && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDownloadBrightBoxStoryPdf(expandedStory._id, 'en') }}
+                      className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-sm rounded-lg"
+                    >
+                      Download PDF (EN)
+                    </button>
+                  )}
+                  {expandedStory.mlFile && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDownloadBrightBoxStoryPdf(expandedStory._id, 'ml') }}
+                      className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-sm rounded-lg"
+                    >
+                      Download PDF (ML)
+                    </button>
+                  )}
+                  {expandedStory.urFile && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDownloadBrightBoxStoryPdf(expandedStory._id, 'ur') }}
+                      className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-sm rounded-lg"
+                    >
+                      Download PDF (UR)
+                    </button>
+                  )}
+                  {expandedStory.hinFile && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDownloadBrightBoxStoryPdf(expandedStory._id, 'hin') }}
+                      className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-sm rounded-lg"
+                    >
+                      Download PDF (HIN)
+                    </button>
+                  )}
+                </div>
               </div>
               
               {/* Footer with Date and Action Icons */}
@@ -1799,6 +1852,44 @@ const BrightBox = () => {
                       <FiFile className="w-4 h-4 mr-2" />
                       <span className="text-sm font-medium">Hindi</span>
                     </a>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {selectedBrightBoxStory.enFile && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadBrightBoxStoryPdf(selectedBrightBoxStory._id, 'en')}
+                      className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-sm rounded-lg"
+                    >
+                      Download PDF (EN)
+                    </button>
+                  )}
+                  {selectedBrightBoxStory.mlFile && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadBrightBoxStoryPdf(selectedBrightBoxStory._id, 'ml')}
+                      className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-sm rounded-lg"
+                    >
+                      Download PDF (ML)
+                    </button>
+                  )}
+                  {selectedBrightBoxStory.urFile && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadBrightBoxStoryPdf(selectedBrightBoxStory._id, 'ur')}
+                      className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-sm rounded-lg"
+                    >
+                      Download PDF (UR)
+                    </button>
+                  )}
+                  {selectedBrightBoxStory.hinFile && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadBrightBoxStoryPdf(selectedBrightBoxStory._id, 'hin')}
+                      className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-sm rounded-lg"
+                    >
+                      Download PDF (HIN)
+                    </button>
                   )}
                 </div>
               </div>
