@@ -64,14 +64,25 @@ function Dashboard() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
-  // Download single story PDF
+  // Download single story PDF - open tab immediately to avoid popup blocking, then load URL
   const handleDownloadSingleStoryPdf = async (storyId, lang = 'en') => {
+    if (!storyId) return
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
     try {
       const res = await axios.get(`${API_BASE_URL}/single-stories/${storyId}/download-pdf`, { params: { lang } })
-      if (res.data?.success && res.data?.data?.downloadUrl) {
-        window.open(res.data.data.downloadUrl, '_blank', 'noopener,noreferrer')
+      const url = res.data?.data?.downloadUrl
+      if (res.data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
+      } else {
+        if (downloadWindow) downloadWindow.close()
+        console.error('Download PDF error:', res.data?.message || 'Could not get download link')
       }
     } catch (err) {
+      if (downloadWindow) downloadWindow.close()
       console.error('Download PDF error:', err)
     }
   }
@@ -79,12 +90,22 @@ function Dashboard() {
   // Download story episode PDF (storyId = expandedCard, seasonId = selectedSeasonId when episode modal is open)
   const handleDownloadEpisodePdf = async (storyId, seasonId, episodeId, lang = 'en') => {
     if (!storyId || !seasonId || !episodeId) return
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
     try {
       const res = await axios.get(`${API_BASE_URL}/stories/${storyId}/seasons/${seasonId}/episodes/${episodeId}/download-pdf`, { params: { lang } })
-      if (res.data?.success && res.data?.data?.downloadUrl) {
-        window.open(res.data.data.downloadUrl, '_blank', 'noopener,noreferrer')
+      const url = res.data?.data?.downloadUrl
+      if (res.data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
+      } else {
+        if (downloadWindow) downloadWindow.close()
+        console.error('Download PDF error:', res.data?.message || 'Could not get download link')
       }
     } catch (err) {
+      if (downloadWindow) downloadWindow.close()
       console.error('Download PDF error:', err)
     }
   }

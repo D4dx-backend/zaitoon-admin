@@ -115,17 +115,26 @@ function Stories() {
   const STORIES_PER_PAGE = 18
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Download episode PDF: fetch download URL from API then open
+  // Download episode PDF: open a tab immediately to avoid popup blocking, then load URL
   const handleDownloadEpisodePdf = async (storyId, seasonId, episodeId, lang = 'en') => {
+    if (!storyId || !seasonId || !episodeId) return
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
     try {
       const res = await fetch(`${API_BASE}/stories/${storyId}/seasons/${seasonId}/episodes/${episodeId}/download-pdf?lang=${encodeURIComponent(lang)}`)
       const data = await res.json()
-      if (data?.success && data?.data?.downloadUrl) {
-        window.open(data.data.downloadUrl, '_blank', 'noopener,noreferrer')
+      const url = data?.data?.downloadUrl
+      if (data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
       } else {
+        if (downloadWindow) downloadWindow.close()
         showModal('error', data?.message || 'Could not get download link')
       }
     } catch (err) {
+      if (downloadWindow) downloadWindow.close()
       showModal('error', 'Failed to get PDF download link')
     }
   }
@@ -541,7 +550,10 @@ function Stories() {
 
   // Handle card expand
   const handleCardExpand = (storyId) => {
+    // Keep track of which story is currently expanded so actions
+    // (like episode PDF download) know the active story context.
     setExpandedCard(storyId)
+    setSelectedStoryId(storyId)
     fetchStoryDetails(storyId)
   }
 
@@ -549,6 +561,7 @@ function Stories() {
   const handleCardCollapse = () => {
     setExpandedCard(null)
     setSelectedStory(null)
+    setSelectedStoryId(null)
     setSelectedSeasonId(null)
     setSelectedEpisode(null)
     setShowEpisodeDetails(false)

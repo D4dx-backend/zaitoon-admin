@@ -94,17 +94,26 @@ const BrightBox = () => {
     }
   }
 
-  // Download PDF: fetch download URL from API then open
+  // Download PDF: open a tab immediately to avoid popup blocking, then load URL
   const handleDownloadBrightBoxStoryPdf = async (storyId, lang = 'en') => {
+    if (!storyId) return
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
     try {
       const res = await fetch(`${API_BASE}/bright-box-stories/${storyId}/download-pdf?lang=${encodeURIComponent(lang)}`)
       const data = await res.json()
-      if (data?.success && data?.data?.downloadUrl) {
-        window.open(data.data.downloadUrl, '_blank', 'noopener,noreferrer')
+      const url = data?.data?.downloadUrl
+      if (data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
       } else {
+        if (downloadWindow) downloadWindow.close()
         showModal('error', data?.message || 'Could not get download link')
       }
     } catch (err) {
+      if (downloadWindow) downloadWindow.close()
       showModal('error', 'Failed to get PDF download link')
     }
   }

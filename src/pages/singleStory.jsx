@@ -75,16 +75,24 @@ function SingleStoryManagement() {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   const STORIES_PER_PAGE = 18
 
-  // Download PDF: fetch download URL from API then open (trigger download)
+  // Download PDF: open a tab immediately to avoid popup blocking, then load URL
   const handleDownloadPdf = async (storyId, lang = 'en') => {
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
     try {
       const res = await axios.get(`${API_BASE_URL}/single-stories/${storyId}/download-pdf`, { params: { lang } })
-      if (res.data?.success && res.data?.data?.downloadUrl) {
-        window.open(res.data.data.downloadUrl, '_blank', 'noopener,noreferrer')
+      const url = res.data?.data?.downloadUrl
+      if (res.data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
       } else {
+        if (downloadWindow) downloadWindow.close()
         setError(res.data?.message || 'Could not get download link')
       }
     } catch (err) {
+      if (downloadWindow) downloadWindow.close()
       setError(err.response?.data?.message || 'Failed to get PDF download link')
     }
   }
