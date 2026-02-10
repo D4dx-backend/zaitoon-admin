@@ -83,21 +83,33 @@ function Banners() {
       const formDataToSend = new FormData()
       formDataToSend.append('title', formData.title)
       
-      // Handle image file upload or URL
-      if (fileInputs.image && fileInputs.image.files[0]) {
-        formDataToSend.append('image', fileInputs.image.files[0])
-      } else if (formData.image) {
-        formDataToSend.append('image', formData.image)
-      } else {
-        showModal('error', 'Image is required (either as file upload or URL)')
+      // Determine presence of image / pdf (file or URL)
+      const hasImageFile = fileInputs.image && fileInputs.image.files && fileInputs.image.files[0]
+      const hasImageUrl = !!formData.image
+      const hasPdfFile = fileInputs.pdf && fileInputs.pdf.files && fileInputs.pdf.files[0]
+      const hasPdfUrl = !!formData.pdf
+
+      const hasImage = !!(hasImageFile || hasImageUrl)
+      const hasPdf = !!(hasPdfFile || hasPdfUrl)
+
+      // Require at least one: image OR pdf
+      if (!hasImage && !hasPdf) {
+        showModal('error', 'Either an image or a PDF is required.')
         setLoading(false)
         return
       }
 
+      // Handle image file upload or URL (optional if PDF is present)
+      if (hasImageFile) {
+        formDataToSend.append('image', fileInputs.image.files[0])
+      } else if (hasImageUrl) {
+        formDataToSend.append('image', formData.image)
+      }
+
       // Handle PDF file upload or URL (optional)
-      if (fileInputs.pdf && fileInputs.pdf.files[0]) {
+      if (hasPdfFile) {
         formDataToSend.append('pdf', fileInputs.pdf.files[0])
-      } else if (formData.pdf) {
+      } else if (hasPdfUrl) {
         formDataToSend.append('pdf', formData.pdf)
       }
       
