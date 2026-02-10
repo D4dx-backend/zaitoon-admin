@@ -16,7 +16,8 @@ import {
   Cog6ToothIcon,
   ListBulletIcon,
   BellAlertIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline'
 import logo from '../assets/logo.png'
 import dxLogo from '../assets/dxLogoWhite.png'
@@ -192,6 +193,14 @@ function Sidebar() {
           >
             <BellAlertIcon className={`w-5 h-5 ${isActive('/notifications') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
             <span className="text-sm font-medium">Notifications</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/activity')}
+            className={getButtonClasses('/activity')}
+          >
+            <ChartBarIcon className={`w-5 h-5 ${isActive('/activity') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+            <span className="text-sm font-medium">Growth & Activity</span>
           </button>
         </nav>
 

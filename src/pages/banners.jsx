@@ -24,7 +24,9 @@ function Banners() {
   const [formData, setFormData] = useState({
     title: '',
     image: '',
-    imageFile: null
+    imageFile: null,
+    pdf: '',
+    pdfFile: null
   })
 
   // API Base URL
@@ -63,7 +65,9 @@ function Banners() {
     setFormData({
       title: '',
       image: '',
-      imageFile: null
+      imageFile: null,
+      pdf: '',
+      pdfFile: null
     })
     setEditingBanner(null)
     setFileInputs({})
@@ -88,6 +92,13 @@ function Banners() {
         showModal('error', 'Image is required (either as file upload or URL)')
         setLoading(false)
         return
+      }
+
+      // Handle PDF file upload or URL (optional)
+      if (fileInputs.pdf && fileInputs.pdf.files[0]) {
+        formDataToSend.append('pdf', fileInputs.pdf.files[0])
+      } else if (formData.pdf) {
+        formDataToSend.append('pdf', formData.pdf)
       }
       
       const response = await fetch(`${API_BASE}/banners`, {
@@ -128,6 +139,13 @@ function Banners() {
         formDataToSend.append('image', fileInputs.image.files[0])
       } else if (formData.image) {
         formDataToSend.append('image', formData.image)
+      }
+
+      // Handle PDF file upload or URL (optional)
+      if (fileInputs.pdf && fileInputs.pdf.files[0]) {
+        formDataToSend.append('pdf', fileInputs.pdf.files[0])
+      } else if (formData.pdf) {
+        formDataToSend.append('pdf', formData.pdf)
       }
       
       const response = await fetch(`${API_BASE}/banners/${editingBanner._id}`, {
@@ -184,7 +202,9 @@ function Banners() {
     setFormData({
       title: banner.title || '',
       image: banner.image || '',
-      imageFile: null
+      imageFile: null,
+      pdf: banner.pdf || '',
+      pdfFile: null
     })
     setShowForm(true)
   }
@@ -303,15 +323,27 @@ function Banners() {
                     <h3 className="text-white text-sm font-semibold truncate mb-1">
                       {banner.title || 'Untitled Banner'}
                     </h3>
-                    <div className="flex items-center space-x-1 text-xs text-gray-400">
-                      <HiCalendar className="w-3 h-3" />
-                      <span>
-                        {new Date(banner.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </span>
+                    <div className="flex items-center justify-between mt-1">
+                      <div className="flex items-center space-x-1 text-xs text-gray-400">
+                        <HiCalendar className="w-3 h-3" />
+                        <span>
+                          {new Date(banner.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      {banner.pdf && (
+                        <a
+                          href={banner.pdf}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-purple-400 hover:text-purple-200 underline"
+                        >
+                          View PDF
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -385,6 +417,47 @@ function Banners() {
                     value={formData.image}
                     onChange={(e) => setFormData({ ...formData, image: e.target.value })}
                     placeholder="Enter image URL"
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* PDF (optional) */}
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>
+                    PDF (optional)
+                  </label>
+
+                  {editingBanner && editingBanner.pdf && (
+                    <div className="mb-3">
+                      <p className="text-gray-400 text-sm mb-1">Current PDF:</p>
+                      <a
+                        href={editingBanner.pdf}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-purple-400 hover:text-purple-200 underline break-all"
+                      >
+                        {editingBanner.pdf}
+                      </a>
+                    </div>
+                  )}
+
+                  {/* File Upload */}
+                  <div className="mb-3">
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setFileInputs({ ...fileInputs, pdf: e.target })}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600"
+                    />
+                    <p className="text-gray-400 text-xs mt-2">Or enter PDF URL below</p>
+                  </div>
+
+                  {/* PDF URL Input */}
+                  <input
+                    type="url"
+                    value={formData.pdf}
+                    onChange={(e) => setFormData({ ...formData, pdf: e.target.value })}
+                    placeholder="Enter PDF URL"
                     className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400"
                   />
                 </div>

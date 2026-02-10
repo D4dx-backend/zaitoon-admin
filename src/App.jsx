@@ -19,6 +19,7 @@ import QuizAttempts from './pages/quizAttempts'
 import AttemptDetail from './pages/attemptDetail'
 import QuizTest from './pages/quizTest'
 import Notifications from './pages/notifications'
+import Activity from './pages/activity'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -204,6 +205,14 @@ function App() {
           element={
             isAuthenticated ? 
             <Notifications /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/activity" 
+          element={
+            isAuthenticated ? 
+            <Activity /> : 
             <Navigate to="/login" replace />
           } 
         />

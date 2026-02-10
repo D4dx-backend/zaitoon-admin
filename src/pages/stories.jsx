@@ -114,6 +114,30 @@ function Stories() {
   const API_BASE = import.meta.env.VITE_API_BASE_URL
   const STORIES_PER_PAGE = 18
   const [currentPage, setCurrentPage] = useState(1)
+
+  // Download episode PDF: open a tab immediately to avoid popup blocking, then load URL
+  const handleDownloadEpisodePdf = async (storyId, seasonId, episodeId, lang = 'en') => {
+    if (!storyId || !seasonId || !episodeId) return
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
+    try {
+      const res = await fetch(`${API_BASE}/stories/${storyId}/seasons/${seasonId}/episodes/${episodeId}/download-pdf?lang=${encodeURIComponent(lang)}`)
+      const data = await res.json()
+      const url = data?.data?.downloadUrl
+      if (data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
+      } else {
+        if (downloadWindow) downloadWindow.close()
+        showModal('error', data?.message || 'Could not get download link')
+      }
+    } catch (err) {
+      if (downloadWindow) downloadWindow.close()
+      showModal('error', 'Failed to get PDF download link')
+    }
+  }
   const [totalPages, setTotalPages] = useState(1)
   const [totalStories, setTotalStories] = useState(0)
   
@@ -526,7 +550,10 @@ function Stories() {
 
   // Handle card expand
   const handleCardExpand = (storyId) => {
+    // Keep track of which story is currently expanded so actions
+    // (like episode PDF download) know the active story context.
     setExpandedCard(storyId)
+    setSelectedStoryId(storyId)
     fetchStoryDetails(storyId)
   }
 
@@ -534,6 +561,7 @@ function Stories() {
   const handleCardCollapse = () => {
     setExpandedCard(null)
     setSelectedStory(null)
+    setSelectedStoryId(null)
     setSelectedSeasonId(null)
     setSelectedEpisode(null)
     setShowEpisodeDetails(false)
@@ -2175,12 +2203,18 @@ function Stories() {
                     {selectedEpisode.storyFile && (
                       <div className="bg-gray-800/50 rounded-lg p-3">
                         <span className="text-gray-400 text-xs">Story File (EN)</span>
-                        <div className="mt-2">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           <button
                             onClick={() => window.open(selectedEpisode.storyFile, '_blank', 'noopener,noreferrer')}
                             className="text-purple-400 hover:text-purple-300 text-sm underline"
                           >
                             View Story File
+                          </button>
+                          <button
+                            onClick={() => selectedStoryId && selectedSeasonId && handleDownloadEpisodePdf(selectedStoryId, selectedSeasonId, selectedEpisode._id, 'en')}
+                            className="text-sm px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg"
+                          >
+                            Download PDF
                           </button>
                         </div>
                       </div>
@@ -2188,12 +2222,18 @@ function Stories() {
                     {selectedEpisode.mlStoryFile && (
                       <div className="bg-gray-800/50 rounded-lg p-3">
                         <span className="text-gray-400 text-xs">Story File (ML)</span>
-                        <div className="mt-2">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           <button
                             onClick={() => window.open(selectedEpisode.mlStoryFile, '_blank', 'noopener,noreferrer')}
                             className="text-purple-400 hover:text-purple-300 text-sm underline"
                           >
                             View Malayalam Story
+                          </button>
+                          <button
+                            onClick={() => selectedStoryId && selectedSeasonId && handleDownloadEpisodePdf(selectedStoryId, selectedSeasonId, selectedEpisode._id, 'ml')}
+                            className="text-sm px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg"
+                          >
+                            Download PDF
                           </button>
                         </div>
                       </div>
@@ -2201,12 +2241,18 @@ function Stories() {
                     {selectedEpisode.urStoryFile && (
                       <div className="bg-gray-800/50 rounded-lg p-3">
                         <span className="text-gray-400 text-xs">Story File (UR)</span>
-                        <div className="mt-2">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           <button
                             onClick={() => window.open(selectedEpisode.urStoryFile, '_blank', 'noopener,noreferrer')}
                             className="text-purple-400 hover:text-purple-300 text-sm underline"
                           >
                             View Urdu Story
+                          </button>
+                          <button
+                            onClick={() => selectedStoryId && selectedSeasonId && handleDownloadEpisodePdf(selectedStoryId, selectedSeasonId, selectedEpisode._id, 'ur')}
+                            className="text-sm px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg"
+                          >
+                            Download PDF
                           </button>
                         </div>
                       </div>
@@ -2214,12 +2260,18 @@ function Stories() {
                     {selectedEpisode.hinStoryFile && (
                       <div className="bg-gray-800/50 rounded-lg p-3">
                         <span className="text-gray-400 text-xs">Story File (HIN)</span>
-                        <div className="mt-2">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           <button
                             onClick={() => window.open(selectedEpisode.hinStoryFile, '_blank', 'noopener,noreferrer')}
                             className="text-purple-400 hover:text-purple-300 text-sm underline"
                           >
                             View Hindi Story
+                          </button>
+                          <button
+                            onClick={() => selectedStoryId && selectedSeasonId && handleDownloadEpisodePdf(selectedStoryId, selectedSeasonId, selectedEpisode._id, 'hin')}
+                            className="text-sm px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg"
+                          >
+                            Download PDF
                           </button>
                         </div>
                       </div>

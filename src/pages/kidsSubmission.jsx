@@ -145,6 +145,10 @@ const KidsSubmission = () => {
 
       const response = await fetch(`${API_BASE}/kids-submissions/${editingSubmission._id}`, {
         method: 'PUT',
+        headers: {
+          // Let the browser set the multipart boundary automatically
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
         body: formData
       })
       
@@ -993,6 +997,32 @@ const KidsSubmission = () => {
                     })}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end space-x-4 pt-4">
+                <button
+                  onClick={() => {
+                    setShowDetails(false)
+                    editSubmission(selectedSubmission)
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-2xl text-sm font-semibold flex items-center space-x-2 transition duration-200"
+                  disabled={loading}
+                >
+                  <FiEdit className="w-4 h-4" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDetails(false)
+                    deleteSubmission(selectedSubmission._id)
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-2xl text-sm font-semibold flex items-center space-x-2 transition duration-200"
+                  disabled={loading}
+                >
+                  <FiTrash2 className="w-4 h-4" />
+                  <span>Delete</span>
+                </button>
               </div>
 
             </div>

@@ -18,6 +18,13 @@ function Questions() {
   const [showForm, setShowForm] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' })
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 20,
+    totalPages: 1
+  })
+  const [currentPage, setCurrentPage] = useState(1)
   
   const [formData, setFormData] = useState({
     questionText: '',
@@ -31,18 +38,29 @@ function Questions() {
   })
 
   useEffect(() => {
-    fetchQuestions()
+    fetchQuestions(1)
   }, [])
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (pageToLoad = 1) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await axios.get(`${API_BASE}/questions`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await axios.get(
+        `${API_BASE}/questions`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { page: pageToLoad, limit: pagination.limit || 20 }
+        }
+      )
       if (response.data.success) {
-        setQuestions(response.data.data.questions || [])
+        const { questions: fetchedQuestions, pagination: serverPagination } = response.data.data || {}
+        setQuestions(fetchedQuestions || [])
+        if (serverPagination) {
+          setPagination(serverPagination)
+          setCurrentPage(serverPagination.page || pageToLoad)
+        } else {
+          setCurrentPage(pageToLoad)
+        }
       }
     } catch (error) {
       showModal('error', 'Failed to fetch questions')
@@ -104,7 +122,7 @@ function Questions() {
         showModal('success', editingQuestion ? 'Question updated successfully' : 'Question created successfully')
         setShowForm(false)
         resetForm()
-        fetchQuestions()
+        fetchQuestions(currentPage)
       }
     } catch (error) {
       showModal('error', error.response?.data?.message || 'Failed to save question')
@@ -140,7 +158,11 @@ function Questions() {
 
       if (response.data.success) {
         showModal('success', 'Question deleted successfully')
-        fetchQuestions()
+        // If we deleted the last item on the current page, and it's now empty,
+        // move back one page (if possible) to avoid showing an empty list.
+        const isLastItemOnPage = questions.length === 1 && currentPage > 1
+        const nextPage = isLastItemOnPage ? currentPage - 1 : currentPage
+        fetchQuestions(nextPage)
       }
     } catch (error) {
       showModal('error', error.response?.data?.message || 'Failed to delete question')
@@ -371,72 +393,110 @@ function Questions() {
               <p className="text-gray-400">No questions found. Create your first question!</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {questions.map((question) => (
-                <div key={question._id} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white mb-2">{question.questionText}</h3>
-                      <p className="text-gray-400 text-sm mb-4">{question.mlQuestionText}</p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <p className="text-xs text-gray-500 mb-2">English Options:</p>
-                          <ul className="space-y-1">
-                            {question.options.map((opt, idx) => (
-                              <li key={idx} className="text-sm text-gray-300">
-                                {idx + 1}. {opt} {idx === question.correctAnswer && (
-                                  <span className="text-green-400 ml-2">✓ Correct</span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
+            <>
+              <div className="space-y-4">
+                {questions.map((question) => (
+                  <div key={question._id} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-white mb-2">{question.questionText}</h3>
+                        <p className="text-gray-400 text-sm mb-4">{question.mlQuestionText}</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-xs text-gray-500 mb-2">English Options:</p>
+                            <ul className="space-y-1">
+                              {question.options.map((opt, idx) => (
+                                <li key={idx} className="text-sm text-gray-300">
+                                  {idx + 1}. {opt} {idx === question.correctAnswer && (
+                                    <span className="text-green-400 ml-2">✓ Correct</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-2">Malayalam Options:</p>
+                            <ul className="space-y-1">
+                              {question.mlOptions.map((opt, idx) => (
+                                <li key={idx} className="text-sm text-gray-300">
+                                  {idx + 1}. {opt}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs text-gray-500 mb-2">Malayalam Options:</p>
-                          <ul className="space-y-1">
-                            {question.mlOptions.map((opt, idx) => (
-                              <li key={idx} className="text-sm text-gray-300">
-                                {idx + 1}. {opt}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center space-x-4 text-sm">
-                        <span className="text-gray-400">
-                          Points: <span className="text-white">{question.points}</span>
-                        </span>
-                        <span className="text-gray-400">
-                          Difficulty: <span className="text-white">{question.difficulty}</span>
-                        </span>
-                        {question.category && (
+                        <div className="flex items-center space-x-4 text-sm">
                           <span className="text-gray-400">
-                            Category: <span className="text-white">{question.category}</span>
+                            Points: <span className="text-white">{question.points}</span>
                           </span>
-                        )}
+                          <span className="text-gray-400">
+                            Difficulty: <span className="text-white">{question.difficulty}</span>
+                          </span>
+                          {question.category && (
+                            <span className="text-gray-400">
+                              Category: <span className="text-white">{question.category}</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex justify-end space-x-2">
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={() => handleEdit(question)}
+                        className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        <FiEdit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(question._id)}
+                        className="p-2 bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        <FiTrash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <div className="text-sm text-gray-400">
+                    Page <span className="text-white">{currentPage}</span> of{" "}
+                    <span className="text-white">{pagination.totalPages}</span>{" "}
+                    <span className="hidden sm:inline">
+                      ({pagination.total} questions)
+                    </span>
+                  </div>
+                  <div className="flex space-x-2">
                     <button
-                      onClick={() => handleEdit(question)}
-                      className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      disabled={currentPage === 1 || loading}
+                      onClick={() => fetchQuestions(currentPage - 1)}
+                      className={`px-3 py-1 rounded-lg text-sm ${
+                        currentPage === 1 || loading
+                          ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                          : "bg-gray-700 text-white hover:bg-gray-600"
+                      }`}
                     >
-                      <FiEdit3 className="w-4 h-4" />
+                      Previous
                     </button>
                     <button
-                      onClick={() => handleDelete(question._id)}
-                      className="p-2 bg-red-600 text-white rounded hover:bg-red-700"
+                      disabled={currentPage === pagination.totalPages || loading}
+                      onClick={() => fetchQuestions(currentPage + 1)}
+                      className={`px-3 py-1 rounded-lg text-sm ${
+                        currentPage === pagination.totalPages || loading
+                          ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                          : "bg-gray-700 text-white hover:bg-gray-600"
+                      }`}
                     >
-                      <FiTrash2 className="w-4 h-4" />
+                      Next
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -74,6 +74,28 @@ function SingleStoryManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   const STORIES_PER_PAGE = 18
+
+  // Download PDF: open a tab immediately to avoid popup blocking, then load URL
+  const handleDownloadPdf = async (storyId, lang = 'en') => {
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
+    try {
+      const res = await axios.get(`${API_BASE_URL}/single-stories/${storyId}/download-pdf`, { params: { lang } })
+      const url = res.data?.data?.downloadUrl
+      if (res.data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
+      } else {
+        if (downloadWindow) downloadWindow.close()
+        setError(res.data?.message || 'Could not get download link')
+      }
+    } catch (err) {
+      if (downloadWindow) downloadWindow.close()
+      setError(err.response?.data?.message || 'Failed to get PDF download link')
+    }
+  }
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalStories, setTotalStories] = useState(0)
@@ -889,34 +911,58 @@ function SingleStoryManagement() {
                             {/* File Links */}
                             <div className="mb-6">
                               <h3 className="text-white text-sm font-medium mb-4 text-gray-300">Story Files</h3>
-                              <div className="flex items-center space-x-6">
+                              <div className="flex flex-wrap items-center gap-3">
                                 {currentStory.enStoryFile ? (
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      e.preventDefault()
-                                      window.open(currentStory.enStoryFile, '_blank', 'noopener,noreferrer')
-                                    }}
-                                    className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
-                                  >
-                                    <span className="text-base font-medium">English</span>
-                                  </button>
+                                  <>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        e.preventDefault()
+                                        window.open(currentStory.enStoryFile, '_blank', 'noopener,noreferrer')
+                                      }}
+                                      className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
+                                    >
+                                      <span className="text-base font-medium">English</span>
+                                    </button>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        e.preventDefault()
+                                        handleDownloadPdf(currentStory._id, 'en')
+                                      }}
+                                      className="flex items-center justify-center px-4 py-3 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg transition duration-200 border border-purple-500/50"
+                                    >
+                                      <span className="text-base font-medium">Download PDF (EN)</span>
+                                    </button>
+                                  </>
                                 ) : (
                                   <div className="flex items-center justify-center px-4 py-3 text-gray-500">
                                     <span className="text-base">No English File</span>
                                   </div>
                                 )}
                                 {currentStory.mlStoryFile ? (
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      e.preventDefault()
-                                      window.open(currentStory.mlStoryFile, '_blank', 'noopener,noreferrer')
-                                    }}
-                                    className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
-                                  >
-                                    <span className="text-base font-medium">Malayalam</span>
-                                  </button>
+                                  <>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        e.preventDefault()
+                                        window.open(currentStory.mlStoryFile, '_blank', 'noopener,noreferrer')
+                                      }}
+                                      className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
+                                    >
+                                      <span className="text-base font-medium">Malayalam</span>
+                                    </button>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        e.preventDefault()
+                                        handleDownloadPdf(currentStory._id, 'ml')
+                                      }}
+                                      className="flex items-center justify-center px-4 py-3 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg transition duration-200 border border-purple-500/50"
+                                    >
+                                      <span className="text-base font-medium">Download PDF (ML)</span>
+                                    </button>
+                                  </>
                                 ) : (
                                   <div className="flex items-center justify-center px-4 py-3 text-gray-500">
                                     <span className="text-base">No Malayalam File</span>

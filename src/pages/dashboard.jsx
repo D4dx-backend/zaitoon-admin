@@ -64,6 +64,52 @@ function Dashboard() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
+  // Download single story PDF - open tab immediately to avoid popup blocking, then load URL
+  const handleDownloadSingleStoryPdf = async (storyId, lang = 'en') => {
+    if (!storyId) return
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
+    try {
+      const res = await axios.get(`${API_BASE_URL}/single-stories/${storyId}/download-pdf`, { params: { lang } })
+      const url = res.data?.data?.downloadUrl
+      if (res.data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
+      } else {
+        if (downloadWindow) downloadWindow.close()
+        console.error('Download PDF error:', res.data?.message || 'Could not get download link')
+      }
+    } catch (err) {
+      if (downloadWindow) downloadWindow.close()
+      console.error('Download PDF error:', err)
+    }
+  }
+
+  // Download story episode PDF (storyId = expandedCard, seasonId = selectedSeasonId when episode modal is open)
+  const handleDownloadEpisodePdf = async (storyId, seasonId, episodeId, lang = 'en') => {
+    if (!storyId || !seasonId || !episodeId) return
+    const downloadWindow = window.open('', '_blank', 'noopener,noreferrer')
+    try {
+      const res = await axios.get(`${API_BASE_URL}/stories/${storyId}/seasons/${seasonId}/episodes/${episodeId}/download-pdf`, { params: { lang } })
+      const url = res.data?.data?.downloadUrl
+      if (res.data?.success && url) {
+        if (downloadWindow) {
+          downloadWindow.location = url
+        } else {
+          window.location.href = url
+        }
+      } else {
+        if (downloadWindow) downloadWindow.close()
+        console.error('Download PDF error:', res.data?.message || 'Could not get download link')
+      }
+    } catch (err) {
+      if (downloadWindow) downloadWindow.close()
+      console.error('Download PDF error:', err)
+    }
+  }
+
   // Sort episodes by leading number in title (ascending: 01, 02, 03, ...)
   const sortEpisodesAsc = (episodes) => {
     if (!Array.isArray(episodes) || episodes.length === 0) return []
@@ -760,34 +806,58 @@ function Dashboard() {
                   {/* File Links */}
                   <div className="mb-3">
                     <h3 className="text-white text-sm font-medium mb-4 text-gray-300">Story Files</h3>
-                    <div className="flex items-center space-x-6">
+                    <div className="flex flex-wrap items-center gap-3">
                       {currentSingleStory.enStoryFile ? (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            e.preventDefault()
-                            window.open(currentSingleStory.enStoryFile, '_blank', 'noopener,noreferrer')
-                          }}
-                          className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
-                        >
-                          <span className="text-base font-medium">English</span>
-                        </button>
+                        <>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              e.preventDefault()
+                              window.open(currentSingleStory.enStoryFile, '_blank', 'noopener,noreferrer')
+                            }}
+                            className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
+                          >
+                            <span className="text-base font-medium">English</span>
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              e.preventDefault()
+                              handleDownloadSingleStoryPdf(currentSingleStory._id, 'en')
+                            }}
+                            className="flex items-center justify-center px-4 py-3 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg transition duration-200 border border-purple-500/50"
+                          >
+                            <span className="text-base font-medium">Download PDF (EN)</span>
+                          </button>
+                        </>
                       ) : (
                         <div className="flex items-center justify-center px-4 py-3 text-gray-500">
                           <span className="text-base">No English File</span>
                         </div>
                       )}
                       {currentSingleStory.mlStoryFile ? (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            e.preventDefault()
-                            window.open(currentSingleStory.mlStoryFile, '_blank', 'noopener,noreferrer')
-                          }}
-                          className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
-                        >
-                          <span className="text-base font-medium">Malayalam</span>
-                        </button>
+                        <>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              e.preventDefault()
+                              window.open(currentSingleStory.mlStoryFile, '_blank', 'noopener,noreferrer')
+                            }}
+                            className="flex items-center justify-center px-4 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 hover:text-white rounded-lg transition duration-200 border border-gray-600/50 hover:border-gray-500/50"
+                          >
+                            <span className="text-base font-medium">Malayalam</span>
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              e.preventDefault()
+                              handleDownloadSingleStoryPdf(currentSingleStory._id, 'ml')
+                            }}
+                            className="flex items-center justify-center px-4 py-3 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg transition duration-200 border border-purple-500/50"
+                          >
+                            <span className="text-base font-medium">Download PDF (ML)</span>
+                          </button>
+                        </>
                       ) : (
                         <div className="flex items-center justify-center px-4 py-3 text-gray-500">
                           <span className="text-base">No Malayalam File</span>
@@ -1197,12 +1267,18 @@ function Dashboard() {
                   {selectedEpisode.storyFile && (
                     <div className="bg-gray-800/50 rounded-lg p-3">
                       <span className="text-gray-400 text-xs">Story File (EN)</span>
-                      <div className="mt-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           onClick={() => window.open(selectedEpisode.storyFile, '_blank', 'noopener,noreferrer')}
                           className="text-purple-400 hover:text-purple-300 text-sm underline"
                         >
                           View Story File
+                        </button>
+                        <button
+                          onClick={() => expandedCard && selectedSeasonId && handleDownloadEpisodePdf(expandedCard, selectedSeasonId, selectedEpisode._id, 'en')}
+                          className="text-sm px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg"
+                        >
+                          Download PDF
                         </button>
                       </div>
                     </div>
@@ -1210,12 +1286,18 @@ function Dashboard() {
                   {selectedEpisode.mlStoryFile && (
                     <div className="bg-gray-800/50 rounded-lg p-3">
                       <span className="text-gray-400 text-xs">Story File (ML)</span>
-                      <div className="mt-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           onClick={() => window.open(selectedEpisode.mlStoryFile, '_blank', 'noopener,noreferrer')}
                           className="text-purple-400 hover:text-purple-300 text-sm underline"
                         >
                           View Malayalam Story
+                        </button>
+                        <button
+                          onClick={() => expandedCard && selectedSeasonId && handleDownloadEpisodePdf(expandedCard, selectedSeasonId, selectedEpisode._id, 'ml')}
+                          className="text-sm px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg"
+                        >
+                          Download PDF
                         </button>
                       </div>
                     </div>
@@ -1223,12 +1305,18 @@ function Dashboard() {
                   {selectedEpisode.urStoryFile && (
                     <div className="bg-gray-800/50 rounded-lg p-3">
                       <span className="text-gray-400 text-xs">Story File (UR)</span>
-                      <div className="mt-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           onClick={() => window.open(selectedEpisode.urStoryFile, '_blank', 'noopener,noreferrer')}
                           className="text-purple-400 hover:text-purple-300 text-sm underline"
                         >
                           View Urdu Story
+                        </button>
+                        <button
+                          onClick={() => expandedCard && selectedSeasonId && handleDownloadEpisodePdf(expandedCard, selectedSeasonId, selectedEpisode._id, 'ur')}
+                          className="text-sm px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg"
+                        >
+                          Download PDF
                         </button>
                       </div>
                     </div>
@@ -1236,12 +1324,18 @@ function Dashboard() {
                   {selectedEpisode.hinStoryFile && (
                     <div className="bg-gray-800/50 rounded-lg p-3">
                       <span className="text-gray-400 text-xs">Story File (HIN)</span>
-                      <div className="mt-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           onClick={() => window.open(selectedEpisode.hinStoryFile, '_blank', 'noopener,noreferrer')}
                           className="text-purple-400 hover:text-purple-300 text-sm underline"
                         >
                           View Hindi Story
+                        </button>
+                        <button
+                          onClick={() => expandedCard && selectedSeasonId && handleDownloadEpisodePdf(expandedCard, selectedSeasonId, selectedEpisode._id, 'hin')}
+                          className="text-sm px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg"
+                        >
+                          Download PDF
                         </button>
                       </div>
                     </div>
