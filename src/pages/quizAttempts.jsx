@@ -6,6 +6,7 @@ import {
   FiAward,
   FiRefreshCw,
   FiEye,
+  FiTrash2,
   FiArrowUp,
   FiArrowDown,
   FiClock
@@ -16,6 +17,7 @@ function QuizAttempts() {
   const API_BASE = import.meta.env.VITE_API_BASE_URL
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
   const [sortConfig, setSortConfig] = useState({ key: 'score', direction: 'desc' })
 
   useEffect(() => {
@@ -83,6 +85,29 @@ function QuizAttempts() {
 
   const handleViewDetails = (attemptId) => {
     navigate(`/quiz-attempts/${attemptId}`)
+  }
+
+  const handleDeleteAttempt = async (attemptId) => {
+    if (!window.confirm('Are you sure you want to delete this quiz attempt? This action cannot be undone.')) {
+      return
+    }
+    setDeletingId(attemptId)
+    try {
+      const token = localStorage.getItem('adminToken')
+      const response = await axios.delete(`${API_BASE}/quiz-attempts/${attemptId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (response.data.success) {
+        await fetchStats()
+      } else {
+        alert(response.data.message || 'Failed to delete attempt')
+      }
+    } catch (error) {
+      console.error('Failed to delete attempt:', error)
+      alert(error.response?.data?.message || 'Failed to delete quiz attempt')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   return (
@@ -251,13 +276,28 @@ function QuizAttempts() {
                           {formatDate(attendee.createdAt)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={() => handleViewDetails(attendee.attemptId)}
-                            className="flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
-                          >
-                            <FiEye className="w-4 h-4" />
-                            <span>View</span>
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleViewDetails(attendee.attemptId)}
+                              className="flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                            >
+                              <FiEye className="w-4 h-4" />
+                              <span>View</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAttempt(attendee.attemptId)}
+                              disabled={deletingId === attendee.attemptId}
+                              className="flex items-center space-x-1 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                              title="Delete attempt"
+                            >
+                              {deletingId === attendee.attemptId ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                              ) : (
+                                <FiTrash2 className="w-4 h-4" />
+                              )}
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

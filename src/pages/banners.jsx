@@ -366,10 +366,10 @@ function Banners() {
 
         {/* Banner Form Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-md flex items-center justify-center z-[10000] p-4">
-            <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl p-8 w-full max-w-md shadow-2xl border border-gray-600/50 scrollbar-hide scroll-smooth scroll-indicator">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-md flex items-center justify-center z-[10000] p-4 overflow-y-auto">
+            <div className="bg-gray-900/80 backdrop-blur-lg rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto shadow-2xl border border-gray-600/50 scrollbar-hide scroll-smooth my-auto">
+              <div className="flex justify-between items-center mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
                   {editingBanner ? 'Edit Banner' : 'Add New Banner'}
                 </h2>
                 <button
@@ -380,7 +380,7 @@ function Banners() {
                 </button>
               </div>
 
-              <form onSubmit={editingBanner ? updateBanner : createBanner} className="space-y-6">
+              <form onSubmit={editingBanner ? updateBanner : createBanner} className="space-y-4 sm:space-y-6">
                 {/* Title */}
                 <div>
                   <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>
@@ -475,16 +475,13 @@ function Banners() {
                 </div>
 
                 {/* Submit Buttons */}
-                <div className="flex justify-end space-x-4 pt-8">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 sm:pt-8">
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="flex items-center justify-center space-x-2 text-white transition duration-200"
+                    className="flex items-center justify-center space-x-2 text-white transition duration-200 w-full sm:w-[140px] min-h-[36px] rounded-[18px]"
                     style={{
                       background: 'linear-gradient(90.05deg, #374151 6.68%, #4B5563 49.26%, #6B7280 91.85%)',
-                      width: '140px',
-                      height: '36px',
-                      borderRadius: '18px',
                       fontFamily: 'Fredoka One',
                       fontWeight: '400',
                       fontSize: '14px',
@@ -498,12 +495,9 @@ function Banners() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex items-center justify-center space-x-2 text-white transition duration-200 disabled:opacity-50"
+                    className="flex items-center justify-center space-x-2 text-white transition duration-200 disabled:opacity-50 w-full sm:w-[160px] min-h-[36px] rounded-[18px]"
                     style={{
                       background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)',
-                      width: '160px',
-                      height: '36px',
-                      borderRadius: '18px',
                       fontFamily: 'Fredoka One',
                       fontWeight: '400',
                       fontSize: '14px',
