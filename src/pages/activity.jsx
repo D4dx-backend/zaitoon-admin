@@ -69,6 +69,7 @@ function Activity() {
             users={users}
             loading={loading}
             error={error}
+            onDelete={fetchActivity}
           />
         </div>
       </div>

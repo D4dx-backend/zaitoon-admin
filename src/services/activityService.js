@@ -96,7 +96,7 @@ export async function updateStreak(userToken) {
 }
 
 /**
- * Mark a book as completed for the app user (app user token).
+ * Mark a book as completed for the app user (app user token). Used by the app, not admin panel.
  * @param {string} userToken - JWT for the app user
  * @returns {Promise<{ success: boolean, data?: object, message?: string }>}
  */
@@ -118,6 +118,29 @@ export async function completeBook(userToken) {
       err.response?.data?.message ||
       err.message ||
       "Failed to complete book.";
+    throw new Error(message);
+  }
+}
+
+/**
+ * Delete/reset a user's growth activity (admin only).
+ * @param {string} firebaseUid - Firebase UID of the user
+ * @returns {Promise<{ success: boolean, message?: string }>}
+ */
+export async function deleteUserActivity(firebaseUid) {
+  if (!firebaseUid) {
+    throw new Error("Firebase UID is required.");
+  }
+  try {
+    const response = await axios.delete(`${API_BASE_URL}/activity/${firebaseUid}`, {
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    });
+    return response.data;
+  } catch (err) {
+    const message =
+      err.response?.data?.message ||
+      err.message ||
+      "Failed to delete user activity.";
     throw new Error(message);
   }
 }
