@@ -1,11 +1,41 @@
-import React from "react";
+import React, { useState } from "react";
+import { deleteUserActivity } from "../services/activityService";
 
 const THEME = { primary: "#7C3AED" };
 
 /**
  * Table of all users with name, avatar placeholder, streak, books read, achievements.
  */
-function UserActivityTable({ users = [], loading = false, error = null }) {
+function UserActivityTable({ users = [], loading = false, error = null, onDelete = null }) {
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
+
+  const handleDelete = async (user) => {
+    if (!window.confirm(`Are you sure you want to reset growth activity for ${user.name || user.email}? This will reset their streak, books read, and achievements to zero.`)) {
+      return;
+    }
+
+    const identifier = user.firebaseUid || user._id;
+    if (!identifier) {
+      setDeleteError("User identifier not found.");
+      return;
+    }
+
+    setDeletingId(user._id);
+    setDeleteError(null);
+
+    try {
+      await deleteUserActivity(identifier);
+      if (onDelete) {
+        onDelete();
+      }
+    } catch (err) {
+      setDeleteError(err.message || "Failed to delete user activity.");
+      console.error("Delete error:", err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
   if (loading) {
     return (
       <div className="rounded-xl border border-violet-500/30 bg-gray-900/80 backdrop-blur-sm p-8 text-center">
@@ -49,6 +79,7 @@ function UserActivityTable({ users = [], loading = false, error = null }) {
               <th className="py-3 px-4">📚 Books read</th>
               <th className="py-3 px-4">🏅 Achievements</th>
               <th className="py-3 px-4">Last active</th>
+              <th className="py-3 px-4">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -110,12 +141,30 @@ function UserActivityTable({ users = [], loading = false, error = null }) {
                   <td className="py-3 px-4 text-gray-400 text-sm">
                     {lastActive}
                   </td>
+                  <td className="py-3 px-4">
+                    <button
+                      onClick={() => handleDelete(u)}
+                      disabled={deletingId === u._id}
+                      className="px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-red-600"
+                      style={{
+                        backgroundColor: deletingId === u._id ? "#6B7280" : "#EF4444",
+                      }}
+                      title="Reset growth activity (streak, books read, achievements)"
+                    >
+                      {deletingId === u._id ? "Deleting..." : "Reset"}
+                    </button>
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+      {deleteError && (
+        <div className="mt-4 p-3 rounded-lg bg-red-500/20 border border-red-500/30">
+          <p className="text-red-400 text-sm">{deleteError}</p>
+        </div>
+      )}
     </div>
   );
 }
