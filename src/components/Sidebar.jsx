@@ -53,10 +53,10 @@ function Sidebar() {
   }
 
   return (
-    <div className="bg-violet-900/95 backdrop-blur-sm border-r border-violet-800/60 h-screen w-56 fixed left-0 top-0 z-40 shadow-xl">
-      <div className="p-4 h-full flex flex-col">
-        {/* Logo */}
-        <div className="flex items-center mb-6 px-2">
+    <div className="bg-violet-900/95 backdrop-blur-sm border-r border-violet-800/60 h-screen w-56 fixed left-0 top-0 z-40 shadow-xl flex flex-col">
+      <div className="p-4 flex flex-col h-full min-h-0">
+        {/* Logo - fixed at top */}
+        <div className="flex-shrink-0 flex items-center mb-6 px-2">
           <img 
             src={logo} 
             alt="Zai Toon Logo" 
@@ -73,8 +73,8 @@ function Sidebar() {
           </h1>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 space-y-1">
+        {/* Navigation Links - scrollable when content overflows */}
+        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-1 scroll-smooth scrollbar-hide">
           <button
             onClick={() => navigate('/dashboard')}
             className={getButtonClasses('/dashboard')}
@@ -204,8 +204,8 @@ function Sidebar() {
           </button>
         </nav>
 
-        {/* Logout Button */}
-        <div className="mt-auto pt-4 border-t border-violet-800/50">
+        {/* Logout Button - fixed at bottom */}
+        <div className="flex-shrink-0 mt-auto pt-4 border-t border-violet-800/50">
           <button
             onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-3 py-2.5 text-violet-300 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 group mb-4"
