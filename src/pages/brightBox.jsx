@@ -50,10 +50,10 @@ const BrightBox = () => {
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL 
 
-  // Fetch all data
+  // Fetch all data (use all=true so admin sees every category and story, not only first page)
   const fetchBrightBoxes = async () => {
     try {
-      const response = await fetch(`${API_BASE}/bright-boxes`)
+      const response = await fetch(`${API_BASE}/bright-boxes?all=true`)
       const data = await response.json()
       if (data.success) {
         setBrightBoxes(data.data.brightBoxes)
@@ -65,7 +65,7 @@ const BrightBox = () => {
 
   const fetchBrightBoxStories = async () => {
     try {
-      const response = await fetch(`${API_BASE}/bright-box-stories`)
+      const response = await fetch(`${API_BASE}/bright-box-stories?all=true`)
       const data = await response.json()
       if (data.success) {
         setBrightBoxStories(data.data.brightBoxStories)
