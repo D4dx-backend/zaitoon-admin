@@ -40,7 +40,8 @@ const BrightBox = () => {
     mlTitle: '',
     urTitle: '',
     hinTitle: '',
-    category: ''
+    category: '',
+    highlight: 'Disable'
   })
 
   // File upload states
@@ -290,6 +291,18 @@ const BrightBox = () => {
       if (fileInputs.hinFile && fileInputs.hinFile.files[0]) {
         formData.append('hinFile', fileInputs.hinFile.files[0])
       }
+      if (fileInputs.adBanner && fileInputs.adBanner.files[0]) {
+        formData.append('adBanner', fileInputs.adBanner.files[0])
+      }
+      if (fileInputs.mlBanner && fileInputs.mlBanner.files[0]) {
+        formData.append('mlBanner', fileInputs.mlBanner.files[0])
+      }
+      if (fileInputs.urBanner && fileInputs.urBanner.files[0]) {
+        formData.append('urBanner', fileInputs.urBanner.files[0])
+      }
+      if (fileInputs.hinBanner && fileInputs.hinBanner.files[0]) {
+        formData.append('hinBanner', fileInputs.hinBanner.files[0])
+      }
 
       const response = await fetch(`${API_BASE}/bright-box-stories`, {
         method: 'POST',
@@ -342,6 +355,18 @@ const BrightBox = () => {
       }
       if (fileInputs.hinFile && fileInputs.hinFile.files[0]) {
         formData.append('hinFile', fileInputs.hinFile.files[0])
+      }
+      if (fileInputs.adBanner && fileInputs.adBanner.files[0]) {
+        formData.append('adBanner', fileInputs.adBanner.files[0])
+      }
+      if (fileInputs.mlBanner && fileInputs.mlBanner.files[0]) {
+        formData.append('mlBanner', fileInputs.mlBanner.files[0])
+      }
+      if (fileInputs.urBanner && fileInputs.urBanner.files[0]) {
+        formData.append('urBanner', fileInputs.urBanner.files[0])
+      }
+      if (fileInputs.hinBanner && fileInputs.hinBanner.files[0]) {
+        formData.append('hinBanner', fileInputs.hinBanner.files[0])
       }
 
       const response = await fetch(`${API_BASE}/bright-box-stories/${editingBrightBoxStory._id}`, {
@@ -424,7 +449,8 @@ const BrightBox = () => {
       mlTitle: '',
       urTitle: '',
       hinTitle: '',
-      category: ''
+      category: '',
+      highlight: 'Disable'
     })
     setEditingBrightBoxStory(null)
     setShowBrightBoxStoryForm(false)
@@ -455,14 +481,19 @@ const BrightBox = () => {
       mlTitle: brightBoxStory.mlTitle || '',
       urTitle: brightBoxStory.urTitle || '',
       hinTitle: brightBoxStory.hinTitle || '',
-      category: brightBoxStory.category?._id || ''
+      category: brightBoxStory.category?._id || '',
+      highlight: brightBoxStory.highlight || 'Disable'
     })
     setSelectedFileNames({
       storyImage: brightBoxStory.image ? brightBoxStory.image.split('/').pop() : '',
       enFile: brightBoxStory.enFile ? brightBoxStory.enFile.split('/').pop() : '',
       mlFile: brightBoxStory.mlFile ? brightBoxStory.mlFile.split('/').pop() : '',
       urFile: brightBoxStory.urFile ? brightBoxStory.urFile.split('/').pop() : '',
-      hinFile: brightBoxStory.hinFile ? brightBoxStory.hinFile.split('/').pop() : ''
+      hinFile: brightBoxStory.hinFile ? brightBoxStory.hinFile.split('/').pop() : '',
+      adBanner: brightBoxStory.adBanner ? brightBoxStory.adBanner.split('/').pop() : '',
+      mlBanner: brightBoxStory.mlBanner ? brightBoxStory.mlBanner.split('/').pop() : '',
+      urBanner: brightBoxStory.urBanner ? brightBoxStory.urBanner.split('/').pop() : '',
+      hinBanner: brightBoxStory.hinBanner ? brightBoxStory.hinBanner.split('/').pop() : ''
     })
     setShowBrightBoxStoryForm(true)
   }
@@ -867,9 +898,16 @@ const BrightBox = () => {
                   {/* Story Content */}
                   <div className="p-4">
                     <div className="mb-2">
-                      <h4 className="text-white text-sm font-bold mb-1 truncate" style={{ fontFamily: 'Archivo Black' }}>
-                        {story.title}
-                      </h4>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h4 className="text-white text-sm font-bold truncate flex-1" style={{ fontFamily: 'Archivo Black' }}>
+                          {story.title}
+                        </h4>
+                        {story.highlight === 'Enable' && (
+                          <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full whitespace-nowrap">
+                            Highlighted
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* File Count */}
@@ -1086,9 +1124,16 @@ const BrightBox = () => {
               {/* Header with Close Button */}
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <h1 className="text-white text-2xl font-bold mb-2" style={{ fontFamily: 'Archivo Black' }}>
-                    {expandedStory.title}
-                  </h1>
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h1 className="text-white text-2xl font-bold" style={{ fontFamily: 'Archivo Black' }}>
+                      {expandedStory.title}
+                    </h1>
+                    {expandedStory.highlight === 'Enable' && (
+                      <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full">
+                        Highlighted
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-1 text-sm text-gray-400">
                     <span className="text-purple-400">{expandedStory.category?.title}</span>
                   </div>
@@ -1241,6 +1286,53 @@ const BrightBox = () => {
                   )}
                 </div>
               </div>
+
+              {/* Banners Section */}
+              {(expandedStory.adBanner || expandedStory.mlBanner || expandedStory.urBanner || expandedStory.hinBanner) && (
+                <div className="mb-4">
+                  <h3 className="text-white text-lg font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>
+                    Ad Banners
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {expandedStory.adBanner && (
+                      <div
+                        className="bg-gray-800/50 rounded-lg p-2 cursor-pointer hover:bg-gray-800/70 transition"
+                        onClick={() => openFileInNewTab(expandedStory.adBanner)}
+                      >
+                        <img src={expandedStory.adBanner} alt="Ad Banner" className="w-full h-20 object-cover rounded mb-1" />
+                        <h4 className="text-yellow-400 text-xs font-medium text-center">English</h4>
+                      </div>
+                    )}
+                    {expandedStory.mlBanner && (
+                      <div
+                        className="bg-gray-800/50 rounded-lg p-2 cursor-pointer hover:bg-gray-800/70 transition"
+                        onClick={() => openFileInNewTab(expandedStory.mlBanner)}
+                      >
+                        <img src={expandedStory.mlBanner} alt="ML Banner" className="w-full h-20 object-cover rounded mb-1" />
+                        <h4 className="text-yellow-400 text-xs font-medium text-center">Malayalam</h4>
+                      </div>
+                    )}
+                    {expandedStory.urBanner && (
+                      <div
+                        className="bg-gray-800/50 rounded-lg p-2 cursor-pointer hover:bg-gray-800/70 transition"
+                        onClick={() => openFileInNewTab(expandedStory.urBanner)}
+                      >
+                        <img src={expandedStory.urBanner} alt="UR Banner" className="w-full h-20 object-cover rounded mb-1" />
+                        <h4 className="text-yellow-400 text-xs font-medium text-center">Urdu</h4>
+                      </div>
+                    )}
+                    {expandedStory.hinBanner && (
+                      <div
+                        className="bg-gray-800/50 rounded-lg p-2 cursor-pointer hover:bg-gray-800/70 transition"
+                        onClick={() => openFileInNewTab(expandedStory.hinBanner)}
+                      >
+                        <img src={expandedStory.hinBanner} alt="HIN Banner" className="w-full h-20 object-cover rounded mb-1" />
+                        <h4 className="text-yellow-400 text-xs font-medium text-center">Hindi</h4>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               
               {/* Footer with Date and Action Icons */}
               <div className="flex items-center justify-between pt-4 border-t border-gray-700/50">
@@ -1345,7 +1437,14 @@ const BrightBox = () => {
                           </td>
                           <td className="py-3 px-4">
                             <div>
-                              <h4 className="text-white font-medium text-sm">{story.title}</h4>
+                              <div className="flex items-center space-x-2">
+                                <h4 className="text-white font-medium text-sm">{story.title}</h4>
+                                {story.highlight === 'Enable' && (
+                                  <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full">
+                                    Highlighted
+                                  </span>
+                                )}
+                              </div>
                               {story.mlTitle && (
                                 <p className="text-gray-400 text-xs">{story.mlTitle}</p>
                               )}
@@ -1626,6 +1725,21 @@ const BrightBox = () => {
                 />
               </div>
 
+              {/* Highlight */}
+              <div>
+                <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>Highlight</label>
+                <CustomDropdown
+                  options={[
+                    { value: 'Enable', label: 'Enable' },
+                    { value: 'Disable', label: 'Disable' }
+                  ]}
+                  value={brightBoxStoryForm.highlight}
+                  onChange={(value) => setBrightBoxStoryForm({ ...brightBoxStoryForm, highlight: value })}
+                  placeholder="Select highlight status..."
+                  className="w-full"
+                />
+              </div>
+
               {/* File Uploads */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Image */}
@@ -1741,6 +1855,108 @@ const BrightBox = () => {
                       <span className="text-gray-400 text-xs">
                         {selectedFileNames.hinFile || 'No file chosen'}
                       </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Banner Uploads */}
+              <div>
+                <h3 className="text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Ad Banners</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Ad Banner (English) */}
+                  <div>
+                    <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>Ad Banner</label>
+                    <div className="relative w-full h-10 bg-gray-800/50 border border-gray-600 rounded-xl overflow-hidden">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          setFileInputs({ ...fileInputs, adBanner: e.target })
+                          setSelectedFileNames({ ...selectedFileNames, adBanner: e.target.files[0]?.name || '' })
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <div className="flex items-center h-full px-3">
+                        <div className="mr-3 py-1.5 px-3 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-semibold rounded-lg transition duration-200">
+                          Choose Banner
+                        </div>
+                        <span className="text-gray-400 text-xs">
+                          {selectedFileNames.adBanner || 'No file chosen'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ML Banner */}
+                  <div>
+                    <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>ML Banner</label>
+                    <div className="relative w-full h-10 bg-gray-800/50 border border-gray-600 rounded-xl overflow-hidden">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          setFileInputs({ ...fileInputs, mlBanner: e.target })
+                          setSelectedFileNames({ ...selectedFileNames, mlBanner: e.target.files[0]?.name || '' })
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <div className="flex items-center h-full px-3">
+                        <div className="mr-3 py-1.5 px-3 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-semibold rounded-lg transition duration-200">
+                          Choose Banner
+                        </div>
+                        <span className="text-gray-400 text-xs">
+                          {selectedFileNames.mlBanner || 'No file chosen'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* UR Banner */}
+                  <div>
+                    <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>UR Banner</label>
+                    <div className="relative w-full h-10 bg-gray-800/50 border border-gray-600 rounded-xl overflow-hidden">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          setFileInputs({ ...fileInputs, urBanner: e.target })
+                          setSelectedFileNames({ ...selectedFileNames, urBanner: e.target.files[0]?.name || '' })
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <div className="flex items-center h-full px-3">
+                        <div className="mr-3 py-1.5 px-3 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-semibold rounded-lg transition duration-200">
+                          Choose Banner
+                        </div>
+                        <span className="text-gray-400 text-xs">
+                          {selectedFileNames.urBanner || 'No file chosen'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HIN Banner */}
+                  <div>
+                    <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>HIN Banner</label>
+                    <div className="relative w-full h-10 bg-gray-800/50 border border-gray-600 rounded-xl overflow-hidden">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          setFileInputs({ ...fileInputs, hinBanner: e.target })
+                          setSelectedFileNames({ ...selectedFileNames, hinBanner: e.target.files[0]?.name || '' })
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <div className="flex items-center h-full px-3">
+                        <div className="mr-3 py-1.5 px-3 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-semibold rounded-lg transition duration-200">
+                          Choose Banner
+                        </div>
+                        <span className="text-gray-400 text-xs">
+                          {selectedFileNames.hinBanner || 'No file chosen'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
