@@ -1,44 +1,49 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import axios from 'axios'
 import { 
   FiAward,
   FiCalendar,
-  FiRefreshCw
+  FiRefreshCw,
+  FiSearch,
+  FiChevronLeft,
+  FiChevronRight,
+  FiX,
+  FiEye,
+  FiClock
 } from 'react-icons/fi'
 
 const today = () => new Date().toISOString().split('T')[0]
-
-const SORT_OPTIONS = [
-  { value: 'score-desc', label: 'Score (high → low)', by: 'score', order: 'desc' },
-  { value: 'score-asc', label: 'Score (low → high)', by: 'score', order: 'asc' },
-  { value: 'time-asc', label: 'Time (fastest first)', by: 'time', order: 'asc' },
-  { value: 'time-desc', label: 'Time (slowest first)', by: 'time', order: 'desc' }
-]
+const LIMIT = 10
 
 function Leaderboard() {
+  const navigate = useNavigate()
   const API_BASE = import.meta.env.VITE_API_BASE_URL
   const [leaderboard, setLeaderboard] = useState([])
-  const [quiz, setQuiz] = useState(null)
+  const [pagination, setPagination] = useState({ total: 0, page: 1, totalPages: 1 })
   const [loading, setLoading] = useState(false)
   const [fromDate, setFromDate] = useState(today())
   const [toDate, setToDate] = useState(today())
-  const [viewMode, setViewMode] = useState('daily') // 'daily' | 'total' | 'byEmail'
+  const [viewMode, setViewMode] = useState('daily')
   const [totalAllTime, setTotalAllTime] = useState(false)
-  const [sortOption, setSortOption] = useState('score-desc')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const searchTimerRef = useRef(null)
+
+  // User detail modal
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [userAttempts, setUserAttempts] = useState([])
+  const [userAttemptsLoading, setUserAttemptsLoading] = useState(false)
 
   useEffect(() => {
     fetchData()
   }, [])
 
-  const fetchTodayLeaderboard = () => {
-    setFromDate(today())
-    setToDate(today())
-    setTotalAllTime(false)
-    setTimeout(() => fetchData(today(), today(), viewMode, false), 0)
-  }
-
-  const fetchData = async (from = fromDate, to = toDate, mode = viewMode, allTime = totalAllTime) => {
+  const fetchData = useCallback(async (
+    from = fromDate, to = toDate, mode = viewMode,
+    allTime = totalAllTime, p = page, s = search
+  ) => {
     const isTotal = mode === 'total'
     const isByEmail = mode === 'byEmail'
     if (!isTotal && !isByEmail && (!from || !to)) return
@@ -46,137 +51,158 @@ function Leaderboard() {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
+      const params = new URLSearchParams()
+      params.set('page', p)
+      params.set('limit', LIMIT)
+      if (s && s.trim()) params.set('search', s.trim())
+
       let url
       if (isByEmail) {
-        url = allTime
-          ? `${API_BASE}/quizzes/leaderboard/by-email`
-          : `${API_BASE}/quizzes/leaderboard/by-email?startDate=${from}&endDate=${to}`
+        if (!allTime) { params.set('startDate', from); params.set('endDate', to) }
+        url = `${API_BASE}/quizzes/leaderboard/by-email?${params}`
       } else if (isTotal) {
-        url = allTime
-          ? `${API_BASE}/quizzes/leaderboard/total`
-          : `${API_BASE}/quizzes/leaderboard/total?startDate=${from}&endDate=${to}`
+        if (!allTime) { params.set('startDate', from); params.set('endDate', to) }
+        url = `${API_BASE}/quizzes/leaderboard/total?${params}`
       } else {
-        url = `${API_BASE}/quizzes/leaderboard/daily?date=${from === to ? from : to}`
+        params.set('date', from === to ? from : to)
+        url = `${API_BASE}/quizzes/leaderboard/daily?${params}`
       }
+
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       })
+
       if (response.data.success) {
         const data = response.data.data
+        const pg = data.pagination || { total: 0, page: 1, totalPages: 1 }
+        setPagination(pg)
+
         if (isByEmail) {
-          const list = (data.leaderboard || []).map((e, i) => ({
-            ...e,
-            rank: i + 1,
-            score: e.totalScore,
-            userEmail: e.email,
-            userClass: e.userClass ?? e.user?.class ?? 'N/A',
-            userPhone: e.userPhone ?? '—',
+          setLeaderboard((data.leaderboard || []).map(e => ({
+            ...e, score: e.totalScore, userEmail: e.email,
+            userClass: e.userClass ?? 'N/A', userPhone: e.userPhone ?? '—',
             percentage: null
-          }))
-          setLeaderboard(list)
-          setQuiz({
-            title: 'Leaderboard by email (combined score)',
-            mlTitle: '',
-            quizDate: allTime ? 'All time' : `${from} to ${to}`,
-            isTotal: true,
-            isByEmail: true
-          })
+          })))
         } else if (isTotal) {
-          const list = (data.leaderboard || []).map((e, i) => ({
-            ...e,
-            rank: i + 1,
-            score: e.totalScore,
-            percentage: null
-          }))
-          setLeaderboard(list)
-          setQuiz({
-            title: allTime ? 'Total Leaderboard (all time)' : 'Total Leaderboard (aggregated)',
-            mlTitle: '',
-            quizDate: allTime ? 'All time' : `${from} to ${to}`,
-            isTotal: true
-          })
+          setLeaderboard((data.leaderboard || []).map(e => ({
+            ...e, score: e.totalScore, percentage: null
+          })))
         } else {
           setLeaderboard(data.attendees || [])
-          setQuiz({
-            title: 'Daily Quiz',
-            mlTitle: 'ദൈനംദിന ക്വിസ്',
-            quizDate: data.date,
-            isTotal: false
-          })
         }
       } else {
         setLeaderboard([])
-        setQuiz(null)
+        setPagination({ total: 0, page: 1, totalPages: 1 })
       }
     } catch (error) {
       console.error('Failed to fetch leaderboard:', error)
       setLeaderboard([])
-      setQuiz(null)
+      setPagination({ total: 0, page: 1, totalPages: 1 })
     } finally {
       setLoading(false)
     }
+  }, [fromDate, toDate, viewMode, totalAllTime, page, search, API_BASE])
+
+  // Debounced search
+  const handleSearchChange = (val) => {
+    setSearch(val)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      setPage(1)
+      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, val)
+    }, 400)
+  }
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage)
+    fetchData(fromDate, toDate, viewMode, totalAllTime, newPage, search)
   }
 
   const handleApplyRange = () => {
+    setPage(1)
     if ((viewMode === 'total' || viewMode === 'byEmail') && totalAllTime) {
-      fetchData(fromDate, toDate, viewMode, true)
+      fetchData(fromDate, toDate, viewMode, true, 1, search)
     } else if (fromDate && toDate && fromDate <= toDate) {
-      fetchData()
+      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, search)
     }
   }
 
   const setMode = (mode) => {
     setViewMode(mode)
+    setPage(1)
     if (mode === 'byEmail') {
-      setTotalAllTime(true) // default to All time so full results show
-      fetchData(fromDate, toDate, 'byEmail', true)
+      setTotalAllTime(true)
+      fetchData(fromDate, toDate, 'byEmail', true, 1, search)
     } else if (mode === 'total') {
-      setTotalAllTime(true) // default to All time so full results show
-      fetchData(fromDate, toDate, 'total', true)
-    } else if (fromDate && toDate) {
-      fetchData(fromDate, toDate, 'daily')
+      setTotalAllTime(true)
+      fetchData(fromDate, toDate, 'total', true, 1, search)
+    } else {
+      fetchData(fromDate, toDate, 'daily', false, 1, search)
     }
   }
 
   const handleAllTimeChange = (e) => {
     const checked = e.target.checked
     setTotalAllTime(checked)
+    setPage(1)
     if (viewMode === 'total' || viewMode === 'byEmail') {
-      if (checked) fetchData(fromDate, toDate, viewMode, true)
-      else if (fromDate && toDate) fetchData(fromDate, toDate, viewMode, false)
+      if (checked) fetchData(fromDate, toDate, viewMode, true, 1, search)
+      else if (fromDate && toDate) fetchData(fromDate, toDate, viewMode, false, 1, search)
     }
   }
 
-  const { by: sortBy, order: sortOrder } = SORT_OPTIONS.find(o => o.value === sortOption) || { by: 'score', order: 'desc' }
-  const sortedLeaderboard = useMemo(() => {
-    const list = [...leaderboard]
-    list.sort((a, b) => {
-      const scoreA = a.score ?? a.totalScore ?? 0
-      const scoreB = b.score ?? b.totalScore ?? 0
-      const timeA = a.totalDuration ?? a.timeTaken ?? 0
-      const timeB = b.totalDuration ?? b.timeTaken ?? 0
-      if (sortBy === 'score') {
-        return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB
+  const fetchTodayLeaderboard = () => {
+    setFromDate(today())
+    setToDate(today())
+    setTotalAllTime(false)
+    setPage(1)
+    setSearch('')
+    fetchData(today(), today(), viewMode, false, 1, '')
+  }
+
+  // Fetch user's individual attempts for the modal
+  const openUserDetail = async (entry) => {
+    const email = entry.userEmail || entry.email || ''
+    if (!email) return
+    setSelectedUser(entry)
+    setUserAttempts([])
+    setUserAttemptsLoading(true)
+    try {
+      const token = localStorage.getItem('adminToken')
+      const response = await axios.get(
+        `${API_BASE}/quiz-attempts/admin/all?email=${encodeURIComponent(email)}&limit=50`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (response.data.success) {
+        setUserAttempts(response.data.data.attendees || [])
       }
-      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA
-    })
-    return list.map((e, i) => ({ ...e, rank: i + 1 }))
-  }, [leaderboard, sortBy, sortOrder])
+    } catch (error) {
+      console.error('Failed to fetch user attempts:', error)
+    } finally {
+      setUserAttemptsLoading(false)
+    }
+  }
 
   const formatDate = (dateString) => {
     if (!dateString) return ''
     if (typeof dateString === 'string' && (dateString.includes(' to ') || dateString === 'All time')) return dateString
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      year: 'numeric', month: 'short', day: 'numeric'
+    })
+  }
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A'
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     })
   }
 
   const formatTime = (seconds) => {
     if (!seconds) return 'N/A'
     const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
+    const secs = Math.floor(seconds % 60)
     return `${mins}m ${secs}s`
   }
 
@@ -187,158 +213,148 @@ function Leaderboard() {
     return null
   }
 
+  const isTotal = viewMode === 'total' || viewMode === 'byEmail'
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
       <Sidebar />
       
-      <div className="flex-1 ml-64">
+      <div className="flex-1 ml-56">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
             <h1 className="text-4xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
               Leaderboard
             </h1>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center space-x-2">
-                <FiCalendar className="w-5 h-5 text-gray-400" />
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
-                />
-                <span className="text-gray-400">to</span>
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
-                />
+              {/* View mode tabs */}
+              <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
+                {[
+                  { key: 'daily', label: 'Daily' },
+                  { key: 'total', label: 'Total' },
+                  { key: 'byEmail', label: 'By Email' }
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setMode(tab.key)}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      viewMode === tab.key
+                        ? 'bg-purple-600 text-white'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
               <button
-                onClick={handleApplyRange}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Apply
-              </button>
-              <button
-                onClick={() => setMode('total')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${viewMode === 'total' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-              >
-                <FiAward className="w-5 h-5" />
-                <span>Total</span>
-              </button>
-              <button
-                onClick={() => setMode('byEmail')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${viewMode === 'byEmail' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-              >
-                <span>By email</span>
-              </button>
-              {(viewMode === 'total' || viewMode === 'byEmail') && (
-                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={totalAllTime}
-                    onChange={handleAllTimeChange}
-                    className="rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500"
-                  />
-                  All time
-                </label>
-              )}
-              <select
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-                className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              <button
                 onClick={fetchTodayLeaderboard}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
               >
-                <FiRefreshCw className="w-5 h-5" />
+                <FiRefreshCw className="w-4 h-4" />
                 <span>Today</span>
               </button>
             </div>
           </div>
 
-          {/* Quiz Info */}
-          {quiz && (
-            <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
-              <h2 className="text-2xl font-bold text-white mb-2">{quiz.title}</h2>
-              <p className="text-gray-400 mb-2">{quiz.mlTitle}</p>
-              <p className="text-sm text-gray-500">
-                Date: {formatDate(quiz.quizDate)}
-              </p>
-              {quiz.isByEmail && (
-                <p className="text-sm text-gray-400 mt-2">
-                  One row per email — total combined score from all daily attempts. Each email can attempt only once per day.
-                </p>
-              )}
-              {quiz.isTotal && !quiz.isByEmail && (
-                <p className="text-sm text-gray-400 mt-2">
-                  One row per user — score and time are combined across all their attempts. Use the Attempts column to see how many tries each user had.
-                </p>
+          {/* Filters row */}
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search name, email, phone..."
+                className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white text-sm rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-500"
+              />
+              {search && (
+                <button onClick={() => handleSearchChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                  <FiX className="w-4 h-4" />
+                </button>
               )}
             </div>
-          )}
 
-          {/* Leaderboard */}
+            {/* Date inputs */}
+            <div className="flex items-center space-x-2">
+              <FiCalendar className="w-4 h-4 text-gray-400" />
+              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+                className="px-3 py-2 bg-gray-800 text-white text-sm rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500" />
+              <span className="text-gray-500 text-sm">to</span>
+              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
+                className="px-3 py-2 bg-gray-800 text-white text-sm rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500" />
+            </div>
+            <button onClick={handleApplyRange}
+              className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors">
+              Apply
+            </button>
+
+            {isTotal && (
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                <input type="checkbox" checked={totalAllTime} onChange={handleAllTimeChange}
+                  className="rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500" />
+                All time
+              </label>
+            )}
+          </div>
+
+          {/* Table */}
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
               <p className="text-gray-400 mt-4">Loading leaderboard...</p>
             </div>
-          ) : !quiz ? (
-            <div className="text-center py-12">
-              <p className="text-gray-400">Could not load leaderboard.</p>
-            </div>
           ) : leaderboard.length === 0 ? (
             <div className="text-center py-12">
+              <FiAward className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400">
-                {(viewMode === 'total' || viewMode === 'byEmail')
-                  ? "No attempts in this date range. Try 'All time' or a wider range."
-                  : 'No attempts yet. Be the first to take the quiz!'}
+                {search ? 'No results for this search.' : 'No attempts found for this range.'}
               </p>
             </div>
           ) : (
             <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-              <div className="px-4 py-2 bg-gray-700/50 text-sm text-gray-400">
-                Showing {sortedLeaderboard.length} {viewMode === 'byEmail' ? 'email(s)' : viewMode === 'total' ? 'user(s)' : 'attempt(s)'}
+              <div className="px-4 py-2 bg-gray-700/50 flex items-center justify-between text-sm text-gray-400">
+                <span>
+                  Showing {(pagination.page - 1) * LIMIT + 1}–{Math.min(pagination.page * LIMIT, pagination.total)} of {pagination.total}
+                  {' '}{viewMode === 'byEmail' ? 'email(s)' : viewMode === 'total' ? 'user(s)' : 'attempt(s)'}
+                </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-700">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Class</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Phone</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Score</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Correct</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
-                      {quiz.isTotal && (
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Attempts</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Class</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Phone</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Score</th>
+                      {viewMode === 'daily' && (
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Correct</th>
                       )}
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
+                      {isTotal && (
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Attempts</th>
+                      )}
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Details</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {sortedLeaderboard.map((entry) => (
+                    {leaderboard.map((entry) => (
                       <tr
-                        key={entry._id || entry.rank}
-                        className={`hover:bg-gray-700/50 transition-colors ${
+                        key={entry.attemptId || entry.userId || entry.email || entry.rank}
+                        className={`hover:bg-gray-700/50 transition-colors cursor-pointer ${
                           entry.rank <= 3 ? 'bg-purple-900/20' : ''
                         }`}
+                        onClick={() => openUserDetail(entry)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
                             <span className="text-lg font-bold text-white">
                               {getRankIcon(entry.rank) || `#${entry.rank}`}
                             </span>
                             {entry.rank <= 3 && (
-                              <FiAward className={`w-5 h-5 ${
+                              <FiAward className={`w-4 h-4 ${
                                 entry.rank === 1 ? 'text-yellow-400' :
                                 entry.rank === 2 ? 'text-gray-300' :
                                 'text-orange-400'
@@ -346,47 +362,158 @@ function Leaderboard() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-white">
-                              {entry.userName || entry.user?.name || ''}
-                            </div>
-                            <div className="text-sm text-gray-400">
-                              {entry.userEmail || entry.user?.email || ''}
-                            </div>
-                          </div>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm font-medium text-white">{entry.userName || ''}</div>
+                          <div className="text-xs text-gray-400">{entry.userEmail || entry.email || ''}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {entry.userClass || entry.user?.class || 'N/A'}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                          {entry.userClass || 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {entry.userPhone || entry.user?.phone || '—'}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                          {entry.userPhone || '—'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-lg font-bold text-purple-400">
-                            {entry.score || entry.totalScore || 0}
+                            {entry.score ?? entry.totalScore ?? 0}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {entry.percentage ? `${entry.percentage.toFixed(2)}%` : 'N/A'}
+                        {viewMode === 'daily' && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                            {entry.percentage != null ? `${entry.percentage.toFixed(1)}%` : 'N/A'}
+                          </td>
+                        )}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                          {formatTime(entry.totalDuration)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {formatTime(entry.totalDuration || entry.timeTaken)}
-                        </td>
-                        {quiz.isTotal && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                        {isTotal && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
                             {entry.attemptsCount ?? '—'}
                           </td>
                         )}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openUserDetail(entry) }}
+                            className="flex items-center space-x-1 px-3 py-1 bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600/30 transition-colors text-xs"
+                          >
+                            <FiEye className="w-3 h-3" />
+                            <span>View</span>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-t border-gray-700">
+                  <p className="text-sm text-gray-400">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page <= 1}
+                      className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      <FiChevronLeft className="w-4 h-4" />
+                      <span>Prev</span>
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page >= pagination.totalPages}
+                      className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      <span>Next</span>
+                      <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* User Detail Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedUser(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+              <div>
+                <h3 className="text-lg font-bold text-white">{selectedUser.userName || 'User'}</h3>
+                <p className="text-sm text-gray-400">{selectedUser.userEmail || selectedUser.email || ''}</p>
+                {selectedUser.userPhone && selectedUser.userPhone !== '—' && (
+                  <p className="text-sm text-gray-500">{selectedUser.userPhone}</p>
+                )}
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Total Score</p>
+                  <p className="text-2xl font-bold text-purple-400">{selectedUser.score ?? selectedUser.totalScore ?? 0}</p>
+                </div>
+                <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white">
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal body — user's attempts */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                All Attempts ({userAttempts.length})
+              </h4>
+              {userAttemptsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
+                  <p className="text-gray-500 mt-3 text-sm">Loading attempts...</p>
+                </div>
+              ) : userAttempts.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center py-8">No attempts found.</p>
+              ) : (
+                <div className="space-y-3">
+                  {userAttempts.map((attempt, i) => (
+                    <div key={attempt.attemptId || i}
+                      className="flex items-center justify-between bg-gray-800 rounded-xl p-4 border border-gray-700/50 hover:border-gray-600 transition-colors">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center text-sm font-bold text-purple-400">
+                          {i + 1}
+                        </div>
+                        <div>
+                          <p className="text-sm text-white font-medium">
+                            Score: <span className="text-purple-400">{attempt.score}</span>
+                            {attempt.percentage != null && (
+                              <span className="text-gray-500 ml-2">({attempt.percentage.toFixed(1)}%)</span>
+                            )}
+                          </p>
+                          <div className="flex items-center space-x-3 text-xs text-gray-500 mt-1">
+                            <span className="flex items-center space-x-1">
+                              <FiClock className="w-3 h-3" />
+                              <span>{formatTime(attempt.totalDuration)}</span>
+                            </span>
+                            <span>{formatDateTime(attempt.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/quiz-attempts/${attempt.attemptId}`)}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <FiEye className="w-3 h-3" />
+                        <span>Detail</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
