@@ -75,7 +75,7 @@ function AttemptDetail() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <Sidebar />
-        <div className="flex-1 ml-64">
+        <div className="flex-1 ml-56">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
@@ -91,7 +91,7 @@ function AttemptDetail() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <Sidebar />
-        <div className="flex-1 ml-64">
+        <div className="flex-1 ml-56">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center py-12">
               <p className="text-gray-400">Attempt not found.</p>
@@ -116,7 +116,7 @@ function AttemptDetail() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
       <Sidebar />
       
-      <div className="flex-1 ml-64">
+      <div className="flex-1 ml-56">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="flex items-center space-x-4 mb-6">
@@ -157,6 +157,10 @@ function AttemptDetail() {
                 <div>
                   <p className="text-sm text-gray-400">Class</p>
                   <p className="text-white font-medium">{user.class || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Phone</p>
+                  <p className="text-white font-medium">{user.phone || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Language</p>

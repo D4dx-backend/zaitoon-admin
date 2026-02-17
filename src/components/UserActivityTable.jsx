@@ -11,7 +11,7 @@ function UserActivityTable({ users = [], loading = false, error = null, onDelete
   const [deleteError, setDeleteError] = useState(null);
 
   const handleDelete = async (user) => {
-    if (!window.confirm(`Are you sure you want to reset growth activity for ${user.name || user.email}? This will reset their streak, books read, and achievements to zero.`)) {
+    if (!window.confirm(`Are you sure you want to delete growth activity for ${user.name || user.email}? This will permanently remove their streak, books read, and achievements data.`)) {
       return;
     }
 
@@ -149,9 +149,9 @@ function UserActivityTable({ users = [], loading = false, error = null, onDelete
                       style={{
                         backgroundColor: deletingId === u._id ? "#6B7280" : "#EF4444",
                       }}
-                      title="Reset growth activity (streak, books read, achievements)"
+                      title="Delete growth activity (streak, books read, achievements)"
                     >
-                      {deletingId === u._id ? "Deleting..." : "Reset"}
+                      {deletingId === u._id ? "Deleting..." : "Delete"}
                     </button>
                   </td>
                 </tr>
