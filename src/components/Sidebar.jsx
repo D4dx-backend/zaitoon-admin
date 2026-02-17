@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   HomeIcon, 
@@ -9,7 +9,6 @@ import {
   PuzzlePieceIcon,
   PhotoIcon,
   ArrowRightOnRectangleIcon,
-  Bars3Icon,
   AcademicCapIcon,
   QuestionMarkCircleIcon,
   TrophyIcon,
@@ -17,217 +16,368 @@ import {
   ListBulletIcon,
   BellAlertIcon,
   CreditCardIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ChevronDownIcon,
+  MagnifyingGlassIcon,
+  CommandLineIcon,
+  Square3Stack3DIcon,
+  SparklesIcon,
+  MegaphoneIcon
 } from '@heroicons/react/24/outline'
 import logo from '../assets/logo.png'
 import dxLogo from '../assets/dxLogoWhite.png'
 
+// Menu configuration with groups
+const menuGroups = [
+  {
+    items: [
+      { label: 'Dashboard', path: '/dashboard', icon: HomeIcon }
+    ]
+  },
+  {
+    label: 'Content',
+    icon: Square3Stack3DIcon,
+    items: [
+      { label: 'Stories', path: '/stories', icon: BookOpenIcon },
+      { label: 'Single Stories', path: '/single-stories', icon: DocumentTextIcon },
+      { label: 'Videos', path: '/videos', icon: VideoCameraIcon },
+      { label: 'Bright Box', path: '/bright-box', icon: SparklesIcon },
+    ]
+  },
+  {
+    label: 'Engagement',
+    icon: UserGroupIcon,
+    items: [
+      { label: 'Kids Submissions', path: '/kids-submissions', icon: UserGroupIcon },
+      { label: 'Puzzles', path: '/puzzles', icon: PuzzlePieceIcon },
+    ]
+  },
+  {
+    label: 'Quizzes',
+    icon: AcademicCapIcon,
+    items: [
+      { label: 'Quizzes', path: '/quizzes', icon: AcademicCapIcon },
+      { label: 'Question Bank', path: '/questions', icon: QuestionMarkCircleIcon },
+      { label: 'Quiz Management', path: '/quiz-management', icon: Cog6ToothIcon },
+      { label: 'Quiz Attempts', path: '/quiz-attempts', icon: ListBulletIcon },
+      { label: 'Leaderboard', path: '/leaderboard', icon: TrophyIcon },
+    ]
+  },
+  {
+    label: 'Marketing',
+    icon: MegaphoneIcon,
+    items: [
+      { label: 'Banners', path: '/banners', icon: PhotoIcon },
+      { label: 'Payment Banner', path: '/payment-banner', icon: CreditCardIcon },
+      { label: 'Notifications', path: '/notifications', icon: BellAlertIcon },
+    ]
+  },
+  {
+    items: [
+      { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon }
+    ]
+  }
+]
+
+// Flatten all items for command palette
+const allMenuItems = menuGroups.flatMap(group => 
+  group.items.map(item => ({
+    ...item,
+    group: group.label || 'General'
+  }))
+)
+
 function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Initialize with the active group already expanded (avoids jump on remount)
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    const initial = {}
+    const path = window.location.pathname
+    menuGroups.forEach(group => {
+      if (group.label && group.items.some(item => path === item.path)) {
+        initial[group.label] = true
+      }
+    })
+    return initial
+  })
+
+  // Keep active group expanded when navigating within sidebar
+  useEffect(() => {
+    setExpandedGroups(prev => {
+      const updates = {}
+      menuGroups.forEach(group => {
+        if (group.label && group.items.some(item => location.pathname === item.path) && !prev[group.label]) {
+          updates[group.label] = true
+        }
+      })
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev
+    })
+  }, [location.pathname])
+
+  // Command+K listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowCommandPalette(prev => !prev)
+        setSearchQuery('')
+      }
+      if (e.key === 'Escape') {
+        setShowCommandPalette(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken')
     localStorage.removeItem('adminUser')
-    
-    // Dispatch custom event to notify App component of auth state change
     window.dispatchEvent(new Event('authStateChange'))
-    
     navigate('/login')
   }
 
-  const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  const isActive = (path) => location.pathname === path
 
-  // Helper function to check if a route is active
-  const isActive = (path) => {
-    return location.pathname === path
+  const isGroupActive = (group) => {
+    return group.items.some(item => location.pathname === item.path)
   }
 
-  // Helper function to get button classes based on active state
+  const toggleGroup = (label) => {
+    setExpandedGroups(prev => ({ ...prev, [label]: !prev[label] }))
+  }
+
   const getButtonClasses = (path) => {
-    const baseClasses = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 group"
+    const baseClasses = "w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group"
     const activeClasses = "text-white bg-gradient-to-r from-purple-600/20 to-purple-700/20 border border-purple-500/30"
     const inactiveClasses = "text-violet-200 hover:text-white hover:bg-violet-800/60"
-    
     return `${baseClasses} ${isActive(path) ? activeClasses : inactiveClasses}`
   }
 
+  // Filtered items for command palette
+  const filteredItems = searchQuery.trim()
+    ? allMenuItems.filter(item => 
+        item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.group.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : allMenuItems
+
+  const handleCommandSelect = useCallback((path) => {
+    navigate(path)
+    setShowCommandPalette(false)
+    setSearchQuery('')
+  }, [navigate])
+
   return (
-    <div className="bg-violet-900/95 backdrop-blur-sm border-r border-violet-800/60 h-screen w-56 fixed left-0 top-0 z-40 shadow-xl flex flex-col">
-      <div className="p-4 flex flex-col h-full min-h-0">
-        {/* Logo - fixed at top */}
-        <div className="flex-shrink-0 flex items-center mb-6 px-2">
-          <img 
-            src={logo} 
-            alt="Zai Toon Logo" 
-            className="h-10 w-auto mr-3"
-          />
-          <h1 
-            style={{
-              fontFamily: 'Archivo Black',
-              fontSize: '20px',
-              color: '#FFFFFF'
-            }}
-          >
-            ZaiToon 
-          </h1>
-        </div>
+    <>
+      <div className="bg-violet-900/95 backdrop-blur-sm border-r border-violet-800/60 h-screen w-56 fixed left-0 top-0 z-40 shadow-xl flex flex-col">
+        <div className="p-4 flex flex-col h-full min-h-0">
+          {/* Logo */}
+          <div className="flex-shrink-0 flex items-center mb-5 px-2">
+            <img src={logo} alt="Zai Toon Logo" className="h-10 w-auto mr-3" />
+            <h1 style={{ fontFamily: 'Archivo Black', fontSize: '20px', color: '#FFFFFF' }}>
+              ZaiToon
+            </h1>
+          </div>
 
-        {/* Navigation Links - scrollable when content overflows */}
-        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-1 scroll-smooth scrollbar-hide">
+          {/* Search / Command K trigger */}
           <button
-            onClick={() => navigate('/dashboard')}
-            className={getButtonClasses('/dashboard')}
+            onClick={() => { setShowCommandPalette(true); setSearchQuery('') }}
+            className="flex-shrink-0 flex items-center space-x-2 w-full px-3 py-2 mb-4 rounded-lg bg-violet-800/40 border border-violet-700/50 text-violet-300 hover:text-white hover:bg-violet-800/60 transition-all duration-200 text-xs"
           >
-            <HomeIcon className={`w-5 h-5 ${isActive('/dashboard') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Dashboard</span>
-          </button>
-          
-          <button
-            onClick={() => navigate('/stories')}
-            className={getButtonClasses('/stories')}
-          >
-            <BookOpenIcon className={`w-5 h-5 ${isActive('/stories') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Stories</span>
-          </button>
-          
-          <button
-            onClick={() => navigate('/single-stories')}
-            className={getButtonClasses('/single-stories')}
-          >
-            <DocumentTextIcon className={`w-5 h-5 ${isActive('/single-stories') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Single Stories</span>
-          </button>
-          
-          <button
-            onClick={() => navigate('/videos')}
-            className={getButtonClasses('/videos')}
-          >
-            <VideoCameraIcon className={`w-5 h-5 ${isActive('/videos') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Videos</span>
-          </button>
-          
-          <button
-            onClick={() => navigate('/kids-submissions')}
-            className={getButtonClasses('/kids-submissions')}
-          >
-            <UserGroupIcon className={`w-5 h-5 ${isActive('/kids-submissions') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Kids Submissions</span>
-          </button>
-          
-          <button
-            onClick={() => navigate('/bright-box')}
-            className={getButtonClasses('/bright-box')}
-          >
-            <BookOpenIcon className={`w-5 h-5 ${isActive('/bright-box') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Bright Box</span>
+            <MagnifyingGlassIcon className="w-4 h-4" />
+            <span className="flex-1 text-left">Search...</span>
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-violet-700/50 rounded text-[10px] text-violet-300 border border-violet-600/50">
+              ⌘K
+            </kbd>
           </button>
 
-          <button
-            onClick={() => navigate('/puzzles')}
-            className={getButtonClasses('/puzzles')}
-          >
-            <PuzzlePieceIcon className={`w-5 h-5 ${isActive('/puzzles') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Puzzles</span>
-          </button>
+          {/* Navigation */}
+          <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-0.5 scroll-smooth scrollbar-hide">
+            {menuGroups.map((group, groupIdx) => {
+              // Standalone items (no group label)
+              if (!group.label) {
+                return group.items.map(item => (
+                  <button
+                    key={item.path}
+                    onClick={() => navigate(item.path)}
+                    className={getButtonClasses(item.path)}
+                  >
+                    <item.icon className={`w-5 h-5 ${isActive(item.path) ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </button>
+                ))
+              }
 
-          <button
-            onClick={() => navigate('/banners')}
-            className={getButtonClasses('/banners')}
-          >
-            <PhotoIcon className={`w-5 h-5 ${isActive('/banners') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Banners</span>
-          </button>
+              // Grouped items with collapsible sub-menu
+              const isExpanded = expandedGroups[group.label]
+              const groupActive = isGroupActive(group)
 
-          <button
-            onClick={() => navigate('/payment-banner')}
-            className={getButtonClasses('/payment-banner')}
-          >
-            <CreditCardIcon className={`w-5 h-5 ${isActive('/payment-banner') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Payment Banner</span>
-          </button>
+              return (
+                <div key={group.label} className="mb-0.5">
+                  {/* Group header */}
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 ${
+                      groupActive
+                        ? 'text-white bg-violet-800/40'
+                        : 'text-violet-300 hover:text-white hover:bg-violet-800/40'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <group.icon className={`w-5 h-5 ${groupActive ? 'text-purple-400' : ''}`} />
+                      <span className="text-sm font-semibold">{group.label}</span>
+                    </div>
+                    <ChevronDownIcon 
+                      className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                    />
+                  </button>
 
-          <button
-            onClick={() => navigate('/quizzes')}
-            className={getButtonClasses('/quizzes')}
-          >
-            <AcademicCapIcon className={`w-5 h-5 ${isActive('/quizzes') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Quizzes</span>
-          </button>
+                  {/* Sub-items — CSS Grid rows for smooth animation */}
+                  <div 
+                    className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+                    style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
+                  >
+                    <div className="overflow-hidden">
+                    <div className="ml-3 pl-3 border-l border-violet-700/40 mt-0.5 space-y-0.5">
+                      {group.items.map(item => (
+                        <button
+                          key={item.path}
+                          onClick={() => navigate(item.path)}
+                          className={getButtonClasses(item.path)}
+                        >
+                          <item.icon className={`w-4 h-4 ${isActive(item.path) ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
+                          <span className="text-xs font-medium">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </nav>
 
-          <button
-            onClick={() => navigate('/questions')}
-            className={getButtonClasses('/questions')}
-          >
-            <QuestionMarkCircleIcon className={`w-5 h-5 ${isActive('/questions') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Question Bank</span>
-          </button>
-
-          <button
-            onClick={() => navigate('/leaderboard')}
-            className={getButtonClasses('/leaderboard')}
-          >
-            <TrophyIcon className={`w-5 h-5 ${isActive('/leaderboard') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Leaderboard</span>
-          </button>
-
-          <button
-            onClick={() => navigate('/quiz-management')}
-            className={getButtonClasses('/quiz-management')}
-          >
-            <Cog6ToothIcon className={`w-5 h-5 ${isActive('/quiz-management') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Quiz Management</span>
-          </button>
-
-          <button
-            onClick={() => navigate('/quiz-attempts')}
-            className={getButtonClasses('/quiz-attempts')}
-          >
-            <ListBulletIcon className={`w-5 h-5 ${isActive('/quiz-attempts') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Quiz Attempts</span>
-          </button>
-
-          <button
-            onClick={() => navigate('/notifications')}
-            className={getButtonClasses('/notifications')}
-          >
-            <BellAlertIcon className={`w-5 h-5 ${isActive('/notifications') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Notifications</span>
-          </button>
-
-          <button
-            onClick={() => navigate('/activity')}
-            className={getButtonClasses('/activity')}
-          >
-            <ChartBarIcon className={`w-5 h-5 ${isActive('/activity') ? 'text-purple-400' : 'group-hover:text-purple-400'}`} />
-            <span className="text-sm font-medium">Growth & Activity</span>
-          </button>
-        </nav>
-
-        {/* Logout Button - fixed at bottom */}
-        <div className="flex-shrink-0 mt-auto pt-4 border-t border-violet-800/50">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-3 py-2.5 text-violet-300 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 group mb-4"
-          >
-            <ArrowRightOnRectangleIcon className="w-5 h-5 group-hover:text-red-400" />
-            <span className="text-sm font-medium">Logout</span>
-          </button>
-          
-          {/* D4DX Logo and Text */}
-          <div className="flex items-center justify-center space-x-2 px-3">
-            <img 
-              src={dxLogo} 
-              alt="D4DX Logo" 
-              className="h-6 w-auto opacity-80"
-            />
-            <p className="text-xs text-violet-300/70 font-medium tracking-wide">
-              POWERED BY D4DX
-            </p>
+          {/* Logout */}
+          <div className="flex-shrink-0 mt-auto pt-4 border-t border-violet-800/50">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center space-x-3 px-3 py-2.5 text-violet-300 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 group mb-4"
+            >
+              <ArrowRightOnRectangleIcon className="w-5 h-5 group-hover:text-red-400" />
+              <span className="text-sm font-medium">Logout</span>
+            </button>
+            
+            <div className="flex items-center justify-center space-x-2 px-3">
+              <img src={dxLogo} alt="D4DX Logo" className="h-6 w-auto opacity-80" />
+              <p className="text-xs text-violet-300/70 font-medium tracking-wide">
+                POWERED BY D4DX
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Command Palette (⌘K) */}
+      {showCommandPalette && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999] flex items-start justify-center pt-[15vh]"
+          onClick={() => setShowCommandPalette(false)}
+        >
+          <div 
+            className="bg-gray-900/95 backdrop-blur-lg border border-gray-700/60 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Search input */}
+            <div className="flex items-center px-4 border-b border-gray-700/50">
+              <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search pages..."
+                autoFocus
+                className="flex-1 bg-transparent border-none outline-none text-white text-sm py-4 px-3 placeholder-gray-500"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredItems.length > 0) {
+                    handleCommandSelect(filteredItems[0].path)
+                  }
+                }}
+              />
+              <kbd className="px-2 py-1 bg-gray-800 rounded text-[10px] text-gray-400 border border-gray-700">
+                ESC
+              </kbd>
+            </div>
+
+            {/* Results */}
+            <div className="max-h-80 overflow-y-auto scrollbar-hide py-2">
+              {filteredItems.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  No results found
+                </div>
+              ) : (
+                <>
+                  {Object.entries(
+                    filteredItems.reduce((acc, item) => {
+                      if (!acc[item.group]) acc[item.group] = []
+                      acc[item.group].push(item)
+                      return acc
+                    }, {})
+                  ).map(([groupName, items]) => (
+                    <div key={groupName}>
+                      <div className="px-4 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                        {groupName}
+                      </div>
+                      {items.map(item => (
+                        <button
+                          key={item.path}
+                          onClick={() => handleCommandSelect(item.path)}
+                          className={`w-full flex items-center space-x-3 px-4 py-2.5 text-sm transition-all duration-150 ${
+                            isActive(item.path)
+                              ? 'text-purple-400 bg-purple-500/10'
+                              : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
+                          }`}
+                        >
+                          <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive(item.path) ? 'text-purple-400' : 'text-gray-500'}`} />
+                          <span className="flex-1 text-left">{item.label}</span>
+                          {isActive(item.path) && (
+                            <span className="text-[10px] text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded-full">
+                              Active
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* Footer hints */}
+            <div className="border-t border-gray-700/50 px-4 py-2.5 flex items-center justify-between text-[10px] text-gray-500">
+              <div className="flex items-center space-x-3">
+                <span className="flex items-center space-x-1">
+                  <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">↵</kbd>
+                  <span>Select</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <kbd className="px-1.5 py-0.5 bg-gray-800 rounded border border-gray-700">ESC</kbd>
+                  <span>Close</span>
+                </span>
+              </div>
+              <span className="flex items-center space-x-1">
+                <CommandLineIcon className="w-3 h-3" />
+                <span>Quick Actions</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
