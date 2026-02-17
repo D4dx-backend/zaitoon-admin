@@ -29,12 +29,21 @@ export async function getActivityStats() {
 }
 
 /**
- * Fetch all users' activity stats for the table (admin only).
- * @returns {Promise<{ success: boolean, data?: { users: Array }, message?: string }>}
+ * Fetch users' activity stats for the table (admin only). Supports pagination and full details.
+ * @param {Object} options
+ * @param {number} [options.page=1]
+ * @param {number} [options.limit=50] - Use 0 or 'all' for no limit (load all).
+ * @param {boolean} [options.details=false] - If true, include completedBooks and hadStreakBeforeReset per user.
+ * @returns {Promise<{ success: boolean, data?: { users: Array, pagination: { page, limit, total, totalPages } }, message?: string }>}
  */
-export async function getAllUsersActivity() {
+export async function getAllUsersActivity(options = {}) {
   try {
-    const response = await axios.get(`${API_BASE_URL}/activity/users`, {
+    const params = new URLSearchParams();
+    if (options.page != null) params.set("page", String(options.page));
+    if (options.limit != null) params.set("limit", options.limit === "all" || options.limit === 0 ? "0" : String(options.limit));
+    if (options.details) params.set("details", "full");
+    const url = `${API_BASE_URL}/activity/users${params.toString() ? `?${params.toString()}` : ""}`;
+    const response = await axios.get(url, {
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     });
     return response.data;
@@ -123,7 +132,7 @@ export async function completeBook(userToken) {
 }
 
 /**
- * Delete/reset a user's growth activity (admin only).
+ * Delete a user's growth activity (admin only).
  * @param {string} firebaseUid - Firebase UID of the user
  * @returns {Promise<{ success: boolean, message?: string }>}
  */
