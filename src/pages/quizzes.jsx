@@ -20,6 +20,8 @@ function Quizzes() {
   const [showForm, setShowForm] = useState(false)
   const [editingQuiz, setEditingQuiz] = useState(null)
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' })
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 20 })
   
   const [formData, setFormData] = useState({
     title: '',
@@ -32,19 +34,24 @@ function Quizzes() {
   })
 
   useEffect(() => {
-    fetchQuizzes()
+    fetchQuizzes(1)
     fetchQuestions()
   }, [])
 
-  const fetchQuizzes = async () => {
+  const fetchQuizzes = async (page = 1) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
       const response = await axios.get(`${API_BASE}/quizzes`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params: { page, limit: 20 }
       })
       if (response.data.success) {
         setQuizzes(response.data.data.quizzes || [])
+        if (response.data.data.pagination) {
+          setPagination(response.data.data.pagination)
+          setCurrentPage(response.data.data.pagination.page || page)
+        }
       }
     } catch (error) {
       showModal('error', 'Failed to fetch quizzes')
@@ -126,7 +133,7 @@ function Quizzes() {
         showModal('success', editingQuiz ? 'Quiz updated successfully' : 'Quiz created successfully')
         setShowForm(false)
         resetForm()
-        fetchQuizzes()
+        fetchQuizzes(currentPage)
       }
     } catch (error) {
       showModal('error', error.response?.data?.message || 'Failed to save quiz')
@@ -161,7 +168,8 @@ function Quizzes() {
 
       if (response.data.success) {
         showModal('success', 'Quiz deleted successfully')
-        fetchQuizzes()
+        const newPage = quizzes.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
+        fetchQuizzes(newPage)
       }
     } catch (error) {
       showModal('error', error.response?.data?.message || 'Failed to delete quiz')
@@ -388,6 +396,7 @@ function Quizzes() {
               <p className="text-gray-400">No quizzes found. Create your first quiz!</p>
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {quizzes.map((quiz) => (
                 <div key={quiz._id} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -436,6 +445,45 @@ function Quizzes() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between mt-8">
+                <p className="text-gray-400 text-sm">
+                  Showing {(currentPage - 1) * pagination.limit + 1}–{Math.min(currentPage * pagination.limit, pagination.total)} of {pagination.total} quizzes
+                </p>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => fetchQuizzes(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => fetchQuizzes(p)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                        p === currentPage
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => fetchQuizzes(currentPage + 1)}
+                    disabled={currentPage >= pagination.totalPages}
+                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </div>
       </div>
