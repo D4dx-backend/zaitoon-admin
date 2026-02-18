@@ -342,8 +342,8 @@ function Quizzes() {
                                   className="mt-1"
                                 />
                                 <div className="flex-1">
-                                  <p className="text-white text-sm">{q.questionNumber || (index + 1)}. {q.questionText.replace(/^\d+\.\s*/, '')}</p>
-                                  <p className="text-gray-400 text-xs">{q.mlQuestionText.replace(/^\d+\.\s*/, '')}</p>
+                                  <p className="text-white text-sm">{q.questionText}</p>
+                                  <p className="text-gray-400 text-xs">{q.mlQuestionText}</p>
                                 </div>
                               </label>
                             ))}
