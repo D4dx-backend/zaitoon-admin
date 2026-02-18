@@ -56,11 +56,20 @@ function Quizzes() {
   const fetchQuestions = async () => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await axios.get(`${API_BASE}/questions`, {
+      const response = await axios.get(`${API_BASE}/questions?limit=1000&sort=asc`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (response.data.success) {
-        setQuestions(response.data.data.questions || [])
+        const raw = response.data.data.questions || []
+        // Deduplicate by questionText to prevent same question appearing twice
+        const seen = new Set()
+        const unique = raw.filter(q => {
+          const key = q.questionText?.trim().toLowerCase()
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        setQuestions(unique)
       }
     } catch (error) {
       console.error('Failed to fetch questions:', error)
@@ -321,7 +330,7 @@ function Quizzes() {
                           <p className="text-gray-400 text-sm">No questions available. Create questions first.</p>
                         ) : (
                           <div className="space-y-2">
-                            {questions.map((q) => (
+                            {questions.map((q, index) => (
                               <label
                                 key={q._id}
                                 className="flex items-start space-x-3 p-2 hover:bg-gray-600 rounded cursor-pointer"
@@ -333,8 +342,8 @@ function Quizzes() {
                                   className="mt-1"
                                 />
                                 <div className="flex-1">
-                                  <p className="text-white text-sm">{q.questionText}</p>
-                                  <p className="text-gray-400 text-xs">{q.mlQuestionText}</p>
+                                  <p className="text-white text-sm">{q.questionNumber || (index + 1)}. {q.questionText.replace(/^\d+\.\s*/, '')}</p>
+                                  <p className="text-gray-400 text-xs">{q.mlQuestionText.replace(/^\d+\.\s*/, '')}</p>
                                 </div>
                               </label>
                             ))}

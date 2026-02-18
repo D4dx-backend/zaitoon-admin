@@ -1,10 +1,12 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
 import axios from 'axios'
 
 function Notifications() {
   const [notificationTitle, setNotificationTitle] = useState('')
   const [notificationMessage, setNotificationMessage] = useState('')
+  const [notificationImage, setNotificationImage] = useState(null)
+  const imageInputRef = useRef(null)
   const [isSendingNotification, setIsSendingNotification] = useState(false)
   const [notificationStatus, setNotificationStatus] = useState(null)
 
@@ -23,23 +25,22 @@ function Notifications() {
       setNotificationStatus(null)
 
       const token = localStorage.getItem('adminToken')
-      const res = await axios.post(
-        `${ADMIN_API_BASE_URL}/send-notification`,
-        {
-          title: notificationTitle.trim(),
-          message: notificationMessage.trim()
-        },
-        {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : ''
-          }
-        }
-      )
+      const config = { headers: { Authorization: token ? `Bearer ${token}` : '' } }
+
+      const formData = new FormData()
+      formData.append('title', notificationTitle.trim())
+      formData.append('message', notificationMessage.trim())
+      if (notificationImage) {
+        formData.append('image', notificationImage)
+      }
+      const res = await axios.post(`${ADMIN_API_BASE_URL}/send-notification`, formData, config)
 
       if (res.data?.success) {
         setNotificationStatus({ type: 'success', message: 'Notification sent successfully.' })
         setNotificationTitle('')
         setNotificationMessage('')
+        setNotificationImage(null)
+        imageInputRef.current && (imageInputRef.current.value = '')
       } else {
         setNotificationStatus({
           type: 'error',
@@ -109,6 +110,20 @@ function Notifications() {
                   placeholder="Notification message"
                   className="w-full bg-black/40 border border-purple-500/40 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Image (optional)</label>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setNotificationImage(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-purple-600 file:text-white file:text-sm hover:file:bg-purple-700"
+                />
+                {notificationImage && (
+                  <p className="mt-1 text-xs text-emerald-400">{notificationImage.name} selected</p>
+                )}
               </div>
 
               <button

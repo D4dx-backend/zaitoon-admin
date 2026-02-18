@@ -49,7 +49,7 @@ function Questions() {
         `${API_BASE}/questions`,
         {
           headers: { Authorization: `Bearer ${token}` },
-          params: { page: pageToLoad, limit: pagination.limit || 20 }
+          params: { page: pageToLoad, limit: pagination.limit || 20, sort: 'asc' }
         }
       )
       if (response.data.success) {
@@ -399,8 +399,8 @@ function Questions() {
                   <div key={question._id} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-2">{question.questionText}</h3>
-                        <p className="text-gray-400 text-sm mb-4">{question.mlQuestionText}</p>
+                        <h3 className="text-lg font-semibold text-white mb-2">{question.questionNumber ? `${question.questionNumber}. ` : ''}{question.questionText.replace(/^\d+\.\s*/, '')}</h3>
+                        <p className="text-gray-400 text-sm mb-4">{question.mlQuestionText.replace(/^\d+\.\s*/, '')}</p>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                           <div>
