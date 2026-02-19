@@ -322,6 +322,7 @@ const KidsSubmission = () => {
       case 'story': return <FiBook className="w-5 h-5" />
       case 'poem': return <FiFileText className="w-5 h-5" />
       case 'drawing': return <FiImage className="w-5 h-5" />
+      case 'other': return <FiStar className="w-5 h-5" />
       default: return <FiBook className="w-5 h-5" />
     }
   }
@@ -475,6 +476,7 @@ const KidsSubmission = () => {
                   <option value="story">Story</option>
                   <option value="poem">Poem</option>
                   <option value="drawing">Drawing</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
 
@@ -492,7 +494,7 @@ const KidsSubmission = () => {
               </div>
 
               {/* Story or Poem */}
-              {submissionForm.contentType !== 'drawing' && (
+              {submissionForm.contentType !== 'drawing' && submissionForm.contentType !== 'other' && (
                 <div>
                   <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>
                     {submissionForm.contentType === 'story' ? 'Story' : 'Poem'} *
@@ -504,6 +506,21 @@ const KidsSubmission = () => {
                     rows={6}
                     className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400 resize-none"
                     placeholder={`Enter ${submissionForm.contentType} content`}
+                  />
+                </div>
+              )}
+
+              {/* Other Content */}
+              {submissionForm.contentType === 'other' && (
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Content Description *</label>
+                  <textarea
+                    value={submissionForm.storyOrPoem}
+                    onChange={(e) => setSubmissionForm({ ...submissionForm, storyOrPoem: e.target.value })}
+                    required
+                    rows={6}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400 resize-none"
+                    placeholder="Enter content description"
                   />
                 </div>
               )}
