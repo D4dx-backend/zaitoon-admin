@@ -31,6 +31,8 @@ function Videos() {
   const [categoryVideosLoading, setCategoryVideosLoading] = useState(false)
   const [draggingVideoId, setDraggingVideoId] = useState(null)
   const [showCategoryTable, setShowCategoryTable] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 10 })
   
   // Form states
   const [showVideoForm, setShowVideoForm] = useState(false)
@@ -71,14 +73,17 @@ function Videos() {
   // Debug logging
 
   // Fetch videos (paginated for performance)
-  const fetchVideos = async () => {
+  const fetchVideos = async (page = 1) => {
     setLoading(true)
     try {
-      // Load only the first page with a small limit to avoid fetching all videos at once
-      const response = await fetch(`${API_BASE}/videos?page=1&limit=10`)
+      const response = await fetch(`${API_BASE}/videos?page=${page}&limit=10`)
       const data = await response.json()
       if (data.success) {
         setVideos(data.data.videos)
+        if (data.data.pagination) {
+          setPagination(data.data.pagination)
+          setCurrentPage(data.data.pagination.page || page)
+        }
       } else {
         showModal('error', 'Failed to fetch videos')
       }
@@ -265,7 +270,7 @@ function Videos() {
         showModal('success', 'Video created successfully!')
         resetVideoForm()
         setShowVideoForm(false)
-        fetchVideos()
+        fetchVideos(currentPage)
       } else {
         showModal('error', data.message || 'Failed to create video')
       }
@@ -309,7 +314,7 @@ function Videos() {
         showModal('success', 'Video updated successfully!')
         resetVideoForm()
         setShowVideoForm(false)
-        fetchVideos()
+        fetchVideos(currentPage)
       } else {
         showModal('error', data.message || 'Failed to update video')
       }
@@ -334,7 +339,8 @@ function Videos() {
       const data = await response.json()
       if (data.success) {
         showModal('success', 'Video deleted successfully!')
-        fetchVideos()
+        const newPage = videos.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
+        fetchVideos(newPage)
       } else {
         showModal('error', data.message || 'Failed to delete video')
       }
@@ -1448,6 +1454,47 @@ function Videos() {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-8 pb-4">
+              <p className="text-gray-400 text-sm">
+                Showing {(currentPage - 1) * pagination.limit + 1}–{Math.min(currentPage * pagination.limit, pagination.total)} of {pagination.total} videos
+              </p>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => fetchVideos(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition duration-200"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => fetchVideos(p)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition duration-200 ${
+                      p === currentPage
+                        ? 'text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
+                    style={p === currentPage ? {
+                      background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)'
+                    } : {}}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => fetchVideos(currentPage + 1)}
+                  disabled={currentPage >= pagination.totalPages}
+                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition duration-200"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>
