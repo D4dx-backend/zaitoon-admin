@@ -44,10 +44,9 @@ function Leaderboard() {
     from = fromDate, to = toDate, mode = viewMode,
     allTime = totalAllTime, p = page, s = search
   ) => {
-    const isTotal = mode === 'total'
     const isByEmail = mode === 'byEmail'
-    if (!isTotal && !isByEmail && (!from || !to)) return
-    if ((isTotal || isByEmail) && !allTime && (!from || !to || from > to)) return
+    if (!isByEmail && (!from || !to)) return
+    if (isByEmail && !allTime && (!from || !to || from > to)) return
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
@@ -60,9 +59,6 @@ function Leaderboard() {
       if (isByEmail) {
         if (!allTime) { params.set('startDate', from); params.set('endDate', to) }
         url = `${API_BASE}/quizzes/leaderboard/by-email?${params}`
-      } else if (isTotal) {
-        if (!allTime) { params.set('startDate', from); params.set('endDate', to) }
-        url = `${API_BASE}/quizzes/leaderboard/total?${params}`
       } else {
         params.set('date', from === to ? from : to)
         url = `${API_BASE}/quizzes/leaderboard/daily?${params}`
@@ -82,10 +78,6 @@ function Leaderboard() {
             ...e, score: e.totalScore, userEmail: e.email,
             userClass: e.userClass ?? 'N/A', userPhone: e.userPhone ?? '—',
             percentage: null
-          })))
-        } else if (isTotal) {
-          setLeaderboard((data.leaderboard || []).map(e => ({
-            ...e, score: e.totalScore, percentage: null
           })))
         } else {
           setLeaderboard(data.attendees || [])
@@ -120,7 +112,7 @@ function Leaderboard() {
 
   const handleApplyRange = () => {
     setPage(1)
-    if ((viewMode === 'total' || viewMode === 'byEmail') && totalAllTime) {
+    if (viewMode === 'byEmail' && totalAllTime) {
       fetchData(fromDate, toDate, viewMode, true, 1, search)
     } else if (fromDate && toDate && fromDate <= toDate) {
       fetchData(fromDate, toDate, viewMode, totalAllTime, 1, search)
@@ -133,9 +125,6 @@ function Leaderboard() {
     if (mode === 'byEmail') {
       setTotalAllTime(true)
       fetchData(fromDate, toDate, 'byEmail', true, 1, search)
-    } else if (mode === 'total') {
-      setTotalAllTime(true)
-      fetchData(fromDate, toDate, 'total', true, 1, search)
     } else {
       fetchData(fromDate, toDate, 'daily', false, 1, search)
     }
@@ -145,7 +134,7 @@ function Leaderboard() {
     const checked = e.target.checked
     setTotalAllTime(checked)
     setPage(1)
-    if (viewMode === 'total' || viewMode === 'byEmail') {
+    if (viewMode === 'byEmail') {
       if (checked) fetchData(fromDate, toDate, viewMode, true, 1, search)
       else if (fromDate && toDate) fetchData(fromDate, toDate, viewMode, false, 1, search)
     }
@@ -213,7 +202,7 @@ function Leaderboard() {
     return null
   }
 
-  const isTotal = viewMode === 'total' || viewMode === 'byEmail'
+  const isTotal = viewMode === 'byEmail'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
@@ -231,8 +220,7 @@ function Leaderboard() {
               <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
                 {[
                   { key: 'daily', label: 'Daily' },
-                  { key: 'total', label: 'Total' },
-                  { key: 'byEmail', label: 'By Email' }
+                  { key: 'byEmail', label: 'Total' }
                 ].map(tab => (
                   <button
                     key={tab.key}

@@ -8,6 +8,10 @@ function Puzzles() {
   const [puzzles, setPuzzles] = useState([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalPuzzles, setTotalPuzzles] = useState(0)
+  const ITEMS_PER_PAGE = 9
   const [editingPuzzle, setEditingPuzzle] = useState(null)
   const [imagefilePreview, setImagefilePreview] = useState('')
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null })
@@ -52,15 +56,21 @@ function Puzzles() {
     setShowForm(false)
   }
 
-  const fetchPuzzles = async () => {
-    console.log('[Puzzles] Fetching puzzles')
+  const fetchPuzzles = async (page = 1) => {
+    console.log('[Puzzles] Fetching puzzles', { page })
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/puzzles`)
+      const response = await fetch(`${API_BASE}/puzzles?page=${page}&limit=${ITEMS_PER_PAGE}`)
       const result = await response.json()
       console.log('[Puzzles] Fetch response', result)
       if (result.success) {
         setPuzzles(result.data?.puzzles || [])
+        const pagination = result.data?.pagination
+        if (pagination) {
+          setCurrentPage(pagination.currentPage)
+          setTotalPages(pagination.totalPages)
+          setTotalPuzzles(pagination.totalPuzzles)
+        }
       } else {
         showModal('error', result.message || 'Failed to fetch puzzles')
       }
@@ -135,7 +145,8 @@ function Puzzles() {
       if (result.success) {
         showModal('success', 'Puzzle created successfully!')
         resetForm()
-        fetchPuzzles()
+        fetchPuzzles(1)
+        setCurrentPage(1)
       } else {
         showModal('error', result.message || 'Failed to create puzzle')
       }
@@ -166,7 +177,7 @@ function Puzzles() {
       if (result.success) {
         showModal('success', 'Puzzle updated successfully!')
         resetForm()
-        fetchPuzzles()
+        fetchPuzzles(currentPage)
       } else {
         showModal('error', result.message || 'Failed to update puzzle')
       }
@@ -226,7 +237,9 @@ function Puzzles() {
       console.log('[Puzzles] Delete response', result)
       if (result.success) {
         showModal('success', 'Puzzle deleted successfully!')
-        fetchPuzzles()
+        const newPage = puzzles.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
+        fetchPuzzles(newPage)
+        setCurrentPage(newPage)
       } else {
         showModal('error', result.message || 'Failed to delete puzzle')
       }
@@ -239,8 +252,8 @@ function Puzzles() {
   }
 
   useEffect(() => {
-    fetchPuzzles()
-  }, [])
+    fetchPuzzles(currentPage)
+  }, [currentPage])
 
   return (
     <div className="min-h-screen bg-black flex">
@@ -312,7 +325,7 @@ function Puzzles() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-24">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
               {puzzles.map((puzzle) => (
                 <div 
                   key={puzzle._id}
@@ -403,6 +416,75 @@ function Puzzles() {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-gray-400 text-sm">
+                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalPuzzles)} of {totalPuzzles} puzzles
+              </p>
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-2 py-1 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition duration-200"
+                >
+                  «
+                </button>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition duration-200"
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .reduce((acc, p, idx, arr) => {
+                    if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...')
+                    acc.push(p)
+                    return acc
+                  }, [])
+                  .map((item, idx) =>
+                    item === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 py-1 text-gray-500 text-sm">…</span>
+                    ) : (
+                      <button
+                        key={item}
+                        onClick={() => setCurrentPage(item)}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition duration-200 ${
+                          currentPage === item
+                            ? 'text-white'
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                        }`}
+                        style={currentPage === item ? {
+                          background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)'
+                        } : {}}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )
+                }
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition duration-200"
+                >
+                  ›
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-2 py-1 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition duration-200"
+                >
+                  »
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-[10000] p-4">

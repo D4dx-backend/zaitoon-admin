@@ -16,6 +16,12 @@ const KidsSubmission = () => {
   const [showDetails, setShowDetails] = useState(false)
   const [modal, setModal] = useState({ show: false, type: '', message: '' })
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const ITEMS_PER_PAGE = 20
+
   // Form states
   const [submissionForm, setSubmissionForm] = useState({
     contentType: 'story',
@@ -45,13 +51,17 @@ const KidsSubmission = () => {
   const API_BASE = import.meta.env.VITE_API_BASE_URL 
 
   // Fetch submissions
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = async (page = currentPage) => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/kids-submissions`)
+      const response = await fetch(`${API_BASE}/kids-submissions?page=${page}&limit=${ITEMS_PER_PAGE}`)
       const data = await response.json()
       if (data.success) {
         setSubmissions(data.data)
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages)
+          setTotalCount(data.pagination.total)
+        }
       }
     } catch (error) {
       console.error('Error fetching submissions:', error)
@@ -61,8 +71,8 @@ const KidsSubmission = () => {
   }
 
   useEffect(() => {
-    fetchSubmissions()
-  }, [])
+    fetchSubmissions(currentPage)
+  }, [currentPage])
 
   // Modal functions
   const showModal = (type, message) => {
@@ -106,7 +116,8 @@ const KidsSubmission = () => {
         showModal('success', 'Submission created successfully!')
         resetSubmissionForm()
         setShowForm(false)
-        fetchSubmissions()
+        setCurrentPage(1)
+        fetchSubmissions(1)
       } else {
         showModal('error', data.message || 'Failed to create submission')
       }
@@ -157,7 +168,7 @@ const KidsSubmission = () => {
         showModal('success', 'Submission updated successfully!')
         resetSubmissionForm()
         setShowForm(false)
-        fetchSubmissions()
+        fetchSubmissions(currentPage)
       } else {
         showModal('error', data.message || 'Failed to update submission')
       }
@@ -185,7 +196,7 @@ const KidsSubmission = () => {
       const data = await response.json()
       if (data.success) {
         showModal('success', 'Submission status updated successfully!')
-        fetchSubmissions()
+        fetchSubmissions(currentPage)
         // Update the selected submission if it's currently being viewed
         if (selectedSubmission && selectedSubmission._id === submissionId) {
           setSelectedSubmission({ ...selectedSubmission, status: newStatus })
@@ -217,7 +228,7 @@ const KidsSubmission = () => {
       const data = await response.json()
       if (data.success) {
         showModal('success', 'Submission highlight updated successfully!')
-        fetchSubmissions()
+        fetchSubmissions(currentPage)
         // Update the selected submission if it's currently being viewed
         if (selectedSubmission && selectedSubmission._id === submissionId) {
           setSelectedSubmission({ ...selectedSubmission, highlight: newHighlight })
@@ -245,7 +256,10 @@ const KidsSubmission = () => {
       const data = await response.json()
       if (data.success) {
         showModal('success', 'Submission deleted successfully!')
-        fetchSubmissions()
+        // If we deleted the last item on a page, go back one page
+        const newPage = submissions.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
+        setCurrentPage(newPage)
+        fetchSubmissions(newPage)
       } else {
         showModal('error', data.message || 'Failed to delete submission')
       }
@@ -420,6 +434,72 @@ const KidsSubmission = () => {
               </div>
             </div>
           ) : null}
+
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Count label */}
+              <p className="text-gray-400 text-sm">
+                Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, totalCount)}–{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount}
+              </p>
+
+              {/* Page buttons */}
+              <div className="flex items-center gap-1">
+                {/* Previous */}
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 rounded-xl text-sm font-medium transition duration-200 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 hover:text-white hover:bg-gray-700/60"
+                >
+                  ← Prev
+                </button>
+
+                {/* Page numbers */}
+                {(() => {
+                  const pages = []
+                  const delta = 2
+                  const left = Math.max(2, currentPage - delta)
+                  const right = Math.min(totalPages - 1, currentPage + delta)
+
+                  pages.push(1)
+                  if (left > 2) pages.push('...')
+                  for (let i = left; i <= right; i++) pages.push(i)
+                  if (right < totalPages - 1) pages.push('...')
+                  if (totalPages > 1) pages.push(totalPages)
+
+                  return pages.map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 py-2 text-gray-500 text-sm select-none">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`w-9 h-9 rounded-xl text-sm font-semibold transition duration-200 ${
+                          currentPage === p
+                            ? 'text-white'
+                            : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
+                        }`}
+                        style={currentPage === p ? {
+                          background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)'
+                        } : {}}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )
+                })()}
+
+                {/* Next */}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 rounded-xl text-sm font-medium transition duration-200 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 hover:text-white hover:bg-gray-700/60"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Loading State */}
           {loading && (
