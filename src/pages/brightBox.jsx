@@ -26,6 +26,15 @@ const BrightBox = () => {
   const [showCategoryTable, setShowCategoryTable] = useState(false)
   const [expandedStory, setExpandedStory] = useState(null)
   const [showStoriesTable, setShowStoriesTable] = useState(false)
+
+  // Pagination states
+  const [bbPage, setBbPage] = useState(1)
+  const [bbTotalPages, setBbTotalPages] = useState(1)
+  const [bbTotal, setBbTotal] = useState(0)
+  const [storiesPage, setStoriesPage] = useState(1)
+  const [storiesTotalPages, setStoriesTotalPages] = useState(1)
+  const [storiesTotal, setStoriesTotal] = useState(0)
+  const ITEMS_PER_PAGE = 20
   
   // Form data
   const [brightBoxForm, setBrightBoxForm] = useState({
@@ -51,25 +60,34 @@ const BrightBox = () => {
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL 
 
-  // Fetch all data (use all=true so admin sees every category and story, not only first page)
-  const fetchBrightBoxes = async () => {
+  // Fetch bright box categories with pagination
+  const fetchBrightBoxes = async (page = bbPage) => {
     try {
-      const response = await fetch(`${API_BASE}/bright-boxes?all=true`)
+      const response = await fetch(`${API_BASE}/bright-boxes?page=${page}&limit=${ITEMS_PER_PAGE}`)
       const data = await response.json()
       if (data.success) {
         setBrightBoxes(data.data.brightBoxes)
+        if (data.data.pagination) {
+          setBbTotalPages(data.data.pagination.totalPages)
+          setBbTotal(data.data.pagination.totalBrightBoxes)
+        }
       }
     } catch (error) {
       console.error('Error fetching bright boxes:', error)
     }
   }
 
-  const fetchBrightBoxStories = async () => {
+  // Fetch bright box stories with pagination
+  const fetchBrightBoxStories = async (page = storiesPage) => {
     try {
-      const response = await fetch(`${API_BASE}/bright-box-stories?all=true`)
+      const response = await fetch(`${API_BASE}/bright-box-stories?page=${page}&limit=${ITEMS_PER_PAGE}`)
       const data = await response.json()
       if (data.success) {
         setBrightBoxStories(data.data.brightBoxStories)
+        if (data.data.pagination) {
+          setStoriesTotalPages(data.data.pagination.totalPages)
+          setStoriesTotal(data.data.pagination.totalBrightBoxStories)
+        }
       }
     } catch (error) {
       console.error('Error fetching bright box stories:', error)
@@ -120,20 +138,12 @@ const BrightBox = () => {
   }
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        await Promise.all([
-          fetchBrightBoxes(),
-          fetchBrightBoxStories()
-        ])
-      } catch (error) {
-        console.error('Error loading initial data:', error)
-        showModal('error', 'Failed to load data. Please refresh the page.')
-      }
-    }
-    
-    loadData()
-  }, [])
+    fetchBrightBoxes(bbPage)
+  }, [bbPage])
+
+  useEffect(() => {
+    fetchBrightBoxStories(storiesPage)
+  }, [storiesPage])
 
   // Modal functions
   const showModal = (type, message, onConfirm = null) => {
@@ -174,7 +184,8 @@ const BrightBox = () => {
         showModal('success', 'Bright Box created successfully!')
         resetBrightBoxForm()
         setShowBrightBoxForm(false)
-        fetchBrightBoxes()
+        setBbPage(1)
+        fetchBrightBoxes(1)
       } else {
         showModal('error', data.message || 'Failed to create bright box')
       }
@@ -214,7 +225,7 @@ const BrightBox = () => {
         showModal('success', 'Bright Box updated successfully!')
         resetBrightBoxForm()
         setShowBrightBoxForm(false)
-        fetchBrightBoxes()
+        fetchBrightBoxes(bbPage)
       } else {
         showModal('error', data.message || 'Failed to update bright box')
       }
@@ -248,8 +259,10 @@ const BrightBox = () => {
         
         if (data.success) {
           showModal('success', 'Bright Box deleted successfully!')
-          fetchBrightBoxes()
-          fetchBrightBoxStories()
+          setBbPage(1)
+          setStoriesPage(1)
+          fetchBrightBoxes(1)
+          fetchBrightBoxStories(1)
         } else {
           showModal('error', data.message || 'Failed to delete bright box')
         }
@@ -317,7 +330,8 @@ const BrightBox = () => {
         showModal('success', 'Bright Box Story created successfully!')
         resetBrightBoxStoryForm()
         setShowBrightBoxStoryForm(false)
-        fetchBrightBoxStories()
+        setStoriesPage(1)
+        fetchBrightBoxStories(1)
       } else {
         showModal('error', data.message || 'Failed to create bright box story')
       }
@@ -382,7 +396,7 @@ const BrightBox = () => {
         showModal('success', 'Bright Box Story updated successfully!')
         resetBrightBoxStoryForm()
         setShowBrightBoxStoryForm(false)
-        fetchBrightBoxStories()
+        fetchBrightBoxStories(storiesPage)
       } else {
         showModal('error', data.message || 'Failed to update bright box story')
       }
@@ -416,7 +430,9 @@ const BrightBox = () => {
         
         if (data.success) {
           showModal('success', 'Bright Box Story deleted successfully!')
-          fetchBrightBoxStories()
+          const newStoriesPage = brightBoxStories.length === 1 && storiesPage > 1 ? storiesPage - 1 : storiesPage
+          setStoriesPage(newStoriesPage)
+          fetchBrightBoxStories(newStoriesPage)
         } else {
           showModal('error', data.message || 'Failed to delete bright box story')
         }
@@ -845,6 +861,58 @@ const BrightBox = () => {
                       <FiPlus className="w-4 h-4" />
                       <span>Add Category</span>
                     </button>
+                  </div>
+                )}
+
+                {/* Categories Pagination */}
+                {bbTotalPages > 1 && (
+                  <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <p className="text-gray-400 text-sm">
+                      Showing {Math.min((bbPage - 1) * ITEMS_PER_PAGE + 1, bbTotal)}–{Math.min(bbPage * ITEMS_PER_PAGE, bbTotal)} of {bbTotal}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setBbPage(p => Math.max(1, p - 1))}
+                        disabled={bbPage === 1}
+                        className="px-3 py-2 rounded-xl text-sm font-medium transition duration-200 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 hover:text-white hover:bg-gray-700/60"
+                      >
+                        ← Prev
+                      </button>
+                      {(() => {
+                        const pages = []
+                        const delta = 2
+                        const left = Math.max(2, bbPage - delta)
+                        const right = Math.min(bbTotalPages - 1, bbPage + delta)
+                        pages.push(1)
+                        if (left > 2) pages.push('...')
+                        for (let i = left; i <= right; i++) pages.push(i)
+                        if (right < bbTotalPages - 1) pages.push('...')
+                        if (bbTotalPages > 1) pages.push(bbTotalPages)
+                        return pages.map((p, idx) =>
+                          p === '...' ? (
+                            <span key={`bbe-${idx}`} className="px-2 py-2 text-gray-500 text-sm select-none">…</span>
+                          ) : (
+                            <button
+                              key={p}
+                              onClick={() => setBbPage(p)}
+                              className={`w-9 h-9 rounded-xl text-sm font-semibold transition duration-200 ${
+                                bbPage === p ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
+                              }`}
+                              style={bbPage === p ? { background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)' } : {}}
+                            >
+                              {p}
+                            </button>
+                          )
+                        )
+                      })()}
+                      <button
+                        onClick={() => setBbPage(p => Math.min(bbTotalPages, p + 1))}
+                        disabled={bbPage === bbTotalPages}
+                        className="px-3 py-2 rounded-xl text-sm font-medium transition duration-200 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 hover:text-white hover:bg-gray-700/60"
+                      >
+                        Next →
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1518,6 +1586,58 @@ const BrightBox = () => {
                     <FiPlus className="w-4 h-4" />
                     <span>Add First Story</span>
                   </button>
+                </div>
+              )}
+
+              {/* Stories Pagination */}
+              {storiesTotalPages > 1 && (
+                <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <p className="text-gray-400 text-sm">
+                    Showing {Math.min((storiesPage - 1) * ITEMS_PER_PAGE + 1, storiesTotal)}–{Math.min(storiesPage * ITEMS_PER_PAGE, storiesTotal)} of {storiesTotal}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setStoriesPage(p => Math.max(1, p - 1))}
+                      disabled={storiesPage === 1}
+                      className="px-3 py-2 rounded-xl text-sm font-medium transition duration-200 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 hover:text-white hover:bg-gray-700/60"
+                    >
+                      ← Prev
+                    </button>
+                    {(() => {
+                      const pages = []
+                      const delta = 2
+                      const left = Math.max(2, storiesPage - delta)
+                      const right = Math.min(storiesTotalPages - 1, storiesPage + delta)
+                      pages.push(1)
+                      if (left > 2) pages.push('...')
+                      for (let i = left; i <= right; i++) pages.push(i)
+                      if (right < storiesTotalPages - 1) pages.push('...')
+                      if (storiesTotalPages > 1) pages.push(storiesTotalPages)
+                      return pages.map((p, idx) =>
+                        p === '...' ? (
+                          <span key={`se-${idx}`} className="px-2 py-2 text-gray-500 text-sm select-none">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            onClick={() => setStoriesPage(p)}
+                            className={`w-9 h-9 rounded-xl text-sm font-semibold transition duration-200 ${
+                              storiesPage === p ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
+                            }`}
+                            style={storiesPage === p ? { background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)' } : {}}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )
+                    })()}
+                    <button
+                      onClick={() => setStoriesPage(p => Math.min(storiesTotalPages, p + 1))}
+                      disabled={storiesPage === storiesTotalPages}
+                      className="px-3 py-2 rounded-xl text-sm font-medium transition duration-200 disabled:opacity-30 disabled:cursor-not-allowed text-gray-300 hover:text-white hover:bg-gray-700/60"
+                    >
+                      Next →
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

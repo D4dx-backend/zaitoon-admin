@@ -1,55 +1,79 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import ActivityStats from "../components/ActivityStats";
 import UserActivityTable from "../components/UserActivityTable";
 import { getActivityStats, getAllUsersActivity } from "../services/activityService";
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 50;
 
 function Activity() {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: DEFAULT_PAGE_SIZE, total: 0, totalPages: 1 });
+  const [page, setPage] = useState(1);
+  const [limit] = useState(DEFAULT_PAGE_SIZE);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [fullDetails, setFullDetails] = useState(false);
 
-  const fetchActivity = async (opts = {}) => {
+  // Use a ref so fetchPage always reads latest page/limit without stale closures
+  const stateRef = useRef({ page, limit });
+  useEffect(() => {
+    stateRef.current = { page, limit };
+  });
+
+  const fetchPage = useCallback(async (targetPage) => {
     setLoading(true);
     setError(null);
-    const page = opts.page ?? pagination.page;
-    const limit = opts.limit ?? pagination.limit;
-    const loadAll = opts.loadAll === true;
-    const details = opts.details ?? fullDetails;
     try {
       const [statsRes, usersRes] = await Promise.all([
         getActivityStats(),
         getAllUsersActivity({
-          page: loadAll ? 1 : page,
-          limit: loadAll ? 0 : limit,
-          details,
+          page: targetPage,
+          limit: stateRef.current.limit,
         }),
       ]);
       if (statsRes.success && statsRes.data) setStats(statsRes.data);
       if (usersRes.success && usersRes.data?.users) {
         setUsers(usersRes.data.users);
-        if (usersRes.data.pagination) setPagination(usersRes.data.pagination);
-      } else if (!usersRes.success) setError(usersRes.message || "Failed to load users.");
+        const pg = usersRes.data.pagination || {};
+        setTotalUsers(pg.total ?? 0);
+        setTotalPages(pg.totalPages ?? 1);
+        setPage(pg.page ?? targetPage);
+      } else if (!usersRes.success) {
+        setError(usersRes.message || "Failed to load users.");
+      }
     } catch (err) {
       setError(err.message || "Failed to load activity.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadAllDetails = () => {
-    setFullDetails(true);
-    fetchActivity({ loadAll: true, details: true });
-  };
-
-  useEffect(() => {
-    fetchActivity();
   }, []);
+
+  // Fetch whenever page changes (first load + navigation)
+  useEffect(() => {
+    fetchPage(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  const handlePrev = () => {
+    if (page > 1) setPage((p) => p - 1);
+  };
+
+  const handleNext = () => {
+    if (page < totalPages) setPage((p) => p + 1);
+  };
+
+  const handleDeleteRefresh = () => {
+    // After delete, reload current page (go to previous page if it would become empty)
+    const safePageAfterDelete =
+      users.length === 1 && page > 1 ? page - 1 : page;
+    if (safePageAfterDelete !== page) {
+      setPage(safePageAfterDelete); // triggers useEffect
+    } else {
+      fetchPage(page);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
@@ -70,59 +94,101 @@ function Activity() {
 
           <ActivityStats stats={stats} users={users} />
 
-          <div className="mb-4 flex flex-wrap justify-between items-center gap-3">
-            <h2 className="text-xl font-semibold text-white">
-              User activity
-            </h2>
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-white">User activity</h2>
+          </div>
+
+          {/* Pagination bar — always visible once data is loaded */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-400">
+            <span>
+              {totalUsers > 0
+                ? `Page ${page} of ${totalPages} (${totalUsers} users)`
+                : loading
+                ? "Loading…"
+                : "No users"}
+            </span>
+            <div className="flex gap-2">
               <button
-                onClick={() => fetchActivity()}
-                disabled={loading}
-                className="px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50 transition-colors"
-                style={{ backgroundColor: "#7C3AED" }}
+                onClick={handlePrev}
+                disabled={loading || page <= 1}
+                className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-40 hover:bg-gray-600 transition-colors"
               >
-                Refresh
+                Previous
               </button>
+              {/* Page number pills */}
+              {totalPages > 1 && (
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                    // Show pages around current
+                    let p;
+                    if (totalPages <= 7) {
+                      p = i + 1;
+                    } else if (page <= 4) {
+                      p = i + 1;
+                    } else if (page >= totalPages - 3) {
+                      p = totalPages - 6 + i;
+                    } else {
+                      p = page - 3 + i;
+                    }
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        disabled={loading}
+                        className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-40 ${
+                          p === page
+                            ? "text-white"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        }`}
+                        style={p === page ? { backgroundColor: "#7C3AED" } : {}}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <button
-                onClick={loadAllDetails}
-                disabled={loading}
-                className="px-4 py-2 rounded-lg bg-violet-600/80 hover:bg-violet-600 text-white font-medium disabled:opacity-50 transition-colors"
+                onClick={handleNext}
+                disabled={loading || page >= totalPages}
+                className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-40 hover:bg-gray-600 transition-colors"
               >
-                Load all details
+                Next
               </button>
             </div>
           </div>
 
-          {pagination.totalPages > 1 && pagination.limit > 0 && (
-            <div className="mb-3 flex items-center justify-between text-sm text-gray-400">
+          <UserActivityTable
+            users={users}
+            loading={loading}
+            error={error}
+            onDelete={handleDeleteRefresh}
+          />
+
+          {/* Bottom pagination for convenience on long tables */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-400">
               <span>
-                Page {pagination.page} of {pagination.totalPages} ({pagination.total} users)
+                Page {page} of {totalPages} ({totalUsers} users)
               </span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => fetchActivity({ page: pagination.page - 1 })}
-                  disabled={loading || pagination.page <= 1}
-                  className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+                  onClick={handlePrev}
+                  disabled={loading || page <= 1}
+                  className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-40 hover:bg-gray-600 transition-colors"
                 >
                   Previous
                 </button>
                 <button
-                  onClick={() => fetchActivity({ page: pagination.page + 1 })}
-                  disabled={loading || pagination.page >= pagination.totalPages}
-                  className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+                  onClick={handleNext}
+                  disabled={loading || page >= totalPages}
+                  className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-40 hover:bg-gray-600 transition-colors"
                 >
                   Next
                 </button>
               </div>
             </div>
           )}
-
-          <UserActivityTable
-            users={users}
-            loading={loading}
-            error={error}
-            onDelete={fetchActivity}
-          />
         </div>
       </div>
     </div>
