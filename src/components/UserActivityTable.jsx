@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { deleteUserActivity } from "../services/activityService";
+import StatusModal from "./SuccessModal";
 
 const THEME = { primary: "#7C3AED" };
 
@@ -9,12 +10,17 @@ const THEME = { primary: "#7C3AED" };
 function UserActivityTable({ users = [], loading = false, error = null, onDelete = null }) {
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+  const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null });
 
-  const handleDelete = async (user) => {
-    if (!window.confirm(`Are you sure you want to delete growth activity for ${user.name || user.email}? This will permanently remove their streak, books read, and achievements data.`)) {
-      return;
-    }
+  const showModal = (type, message, onConfirm = null, onCancel = null) => {
+    setModal({ isOpen: true, type, message, onConfirm, onCancel });
+  };
 
+  const closeModal = () => {
+    setModal({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null });
+  };
+
+  const confirmDelete = async (user) => {
     const identifier = user.firebaseUid || user._id;
     if (!identifier) {
       setDeleteError("User identifier not found.");
@@ -35,6 +41,10 @@ function UserActivityTable({ users = [], loading = false, error = null, onDelete
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleDelete = (user) => {
+    showModal('confirmation', `Are you sure you want to delete growth activity for ${user.name || user.email}? This will permanently remove their streak, books read, and achievements data.`, () => confirmDelete(user), null);
   };
   if (loading) {
     return (
@@ -165,6 +175,14 @@ function UserActivityTable({ users = [], loading = false, error = null, onDelete
           <p className="text-red-400 text-sm">{deleteError}</p>
         </div>
       )}
+      <StatusModal
+        isOpen={modal.isOpen}
+        type={modal.type}
+        message={modal.message}
+        onClose={closeModal}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
+      />
     </div>
   );
 }

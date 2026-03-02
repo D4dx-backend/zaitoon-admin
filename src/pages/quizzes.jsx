@@ -19,7 +19,7 @@ function Quizzes() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingQuiz, setEditingQuiz] = useState(null)
-  const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' })
+  const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null })
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 20 })
 
@@ -83,12 +83,12 @@ function Quizzes() {
     }
   }
 
-  const showModal = (type, message) => {
-    setModal({ isOpen: true, type, message })
+  const showModal = (type, message, onConfirm = null, onCancel = null) => {
+    setModal({ isOpen: true, type, message, onConfirm, onCancel })
   }
 
   const closeModal = () => {
-    setModal({ isOpen: false, type: 'success', message: '' })
+    setModal({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null })
   }
 
   const handleInputChange = (e) => {
@@ -156,9 +156,7 @@ function Quizzes() {
     setShowForm(true)
   }
 
-  const handleDelete = async (quizId) => {
-    if (!window.confirm('Are you sure you want to delete this quiz?')) return
-
+  const confirmDelete = async (quizId) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
@@ -176,6 +174,10 @@ function Quizzes() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDelete = (quizId) => {
+    showModal('confirmation', 'Are you sure you want to delete this quiz?', () => confirmDelete(quizId), null)
   }
 
   const resetForm = () => {
@@ -493,6 +495,8 @@ function Quizzes() {
         type={modal.type}
         message={modal.message}
         onClose={closeModal}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
       />
     </div>
   )

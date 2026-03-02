@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
+import SuccessModal from '../components/SuccessModal'
 import axios from 'axios'
 import { 
   FiAward,
@@ -26,6 +27,15 @@ function QuizAttempts() {
   const [pagination, setPagination] = useState({ total: 0, page: 1, totalPages: 1 })
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null })
+
+  const showModal = (type, message, onConfirm = null, onCancel = null) => {
+    setModal({ isOpen: true, type, message, onConfirm, onCancel })
+  }
+
+  const closeModal = () => {
+    setModal({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null })
+  }
 
   // Filters
   const [search, setSearch] = useState('')
@@ -137,8 +147,7 @@ function QuizAttempts() {
     navigate(`/quiz-attempts/${attemptId}`)
   }
 
-  const handleDeleteAttempt = async (attemptId) => {
-    if (!window.confirm('Are you sure you want to delete this quiz attempt? This action cannot be undone.')) return
+  const confirmDeleteAttempt = async (attemptId) => {
     setDeletingId(attemptId)
     try {
       const token = localStorage.getItem('adminToken')
@@ -148,17 +157,22 @@ function QuizAttempts() {
       if (response.data.success) {
         await fetchAttempts(page, search, fromDate, toDate)
       } else {
-        alert(response.data.message || 'Failed to delete attempt')
+        showModal('error', response.data.message || 'Failed to delete attempt')
       }
     } catch (error) {
       console.error('Failed to delete attempt:', error)
-      alert(error.response?.data?.message || 'Failed to delete quiz attempt')
+      showModal('error', error.response?.data?.message || 'Failed to delete quiz attempt')
     } finally {
       setDeletingId(null)
     }
   }
 
+  const handleDeleteAttempt = (attemptId) => {
+    showModal('confirmation', 'Are you sure you want to delete this quiz attempt? This action cannot be undone.', () => confirmDeleteAttempt(attemptId), null)
+  }
+
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
       <Sidebar />
       
@@ -391,6 +405,16 @@ function QuizAttempts() {
         </div>
       </div>
     </div>
+
+      <SuccessModal
+        isOpen={modal.isOpen}
+        type={modal.type}
+        message={modal.message}
+        onClose={closeModal}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
+      />
+    </>
   )
 }
 

@@ -14,13 +14,16 @@ const KidsSubmission = () => {
   const [expandedCard, setExpandedCard] = useState(null)
   const [selectedSubmission, setSelectedSubmission] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
-  const [modal, setModal] = useState({ show: false, type: '', message: '' })
+  const [modal, setModal] = useState({ isOpen: false, type: '', message: '', onConfirm: null, onCancel: null })
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const ITEMS_PER_PAGE = 20
+
+  // Filter state — '' = All, 'Pending'/'Approved'/'Rejected' = status, 'highlighted' = highlight=Enable
+  const [activeFilter, setActiveFilter] = useState('')
 
   // Form states
   const [submissionForm, setSubmissionForm] = useState({
@@ -50,11 +53,23 @@ const KidsSubmission = () => {
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL 
 
+  // Filter handler — resets to page 1 on filter change
+  const handleFilterChange = (filter) => {
+    setActiveFilter(filter)
+    setCurrentPage(1)
+  }
+
   // Fetch submissions
-  const fetchSubmissions = async (page = currentPage) => {
+  const fetchSubmissions = async (page = currentPage, filter = activeFilter) => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/kids-submissions?page=${page}&limit=${ITEMS_PER_PAGE}`)
+      let filterParam = ''
+      if (filter === 'highlighted') {
+        filterParam = '&highlight=Enable'
+      } else if (filter) {
+        filterParam = `&status=${filter}`
+      }
+      const response = await fetch(`${API_BASE}/kids-submissions?page=${page}&limit=${ITEMS_PER_PAGE}${filterParam}`)
       const data = await response.json()
       if (data.success) {
         setSubmissions(data.data)
@@ -71,13 +86,19 @@ const KidsSubmission = () => {
   }
 
   useEffect(() => {
-    fetchSubmissions(currentPage)
-  }, [currentPage])
+    fetchSubmissions(currentPage, activeFilter)
+  }, [currentPage, activeFilter])
 
   // Modal functions
-  const showModal = (type, message) => {
-    setModal({ show: true, type, message })
-    setTimeout(() => setModal({ show: false, type: '', message: '' }), 3000)
+  const showModal = (type, message, onConfirm = null, onCancel = null) => {
+    setModal({ isOpen: true, type, message, onConfirm, onCancel })
+    if (type !== 'confirmation') {
+      setTimeout(() => setModal({ isOpen: false, type: '', message: '', onConfirm: null, onCancel: null }), 3000)
+    }
+  }
+
+  const closeModal = () => {
+    setModal({ isOpen: false, type: '', message: '', onConfirm: null, onCancel: null })
   }
 
   // Create submission
@@ -244,19 +265,19 @@ const KidsSubmission = () => {
   }
 
   // Delete submission
-  const deleteSubmission = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this submission?')) return
-    
+  const confirmDeleteSubmission = async (id) => {
     setLoading(true)
     try {
       const response = await fetch(`${API_BASE}/kids-submissions/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
       })
       
       const data = await response.json()
       if (data.success) {
         showModal('success', 'Submission deleted successfully!')
-        // If we deleted the last item on a page, go back one page
         const newPage = submissions.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
         setCurrentPage(newPage)
         fetchSubmissions(newPage)
@@ -268,6 +289,10 @@ const KidsSubmission = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const deleteSubmission = (id) => {
+    showModal('confirmation', 'Are you sure you want to delete this submission?', () => confirmDeleteSubmission(id), null)
   }
 
   // Reset forms
@@ -374,6 +399,37 @@ const KidsSubmission = () => {
                 ></div>
               </h1>
             </div>
+          </div>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { label: 'All', value: '' },
+              { label: 'Pending', value: 'Pending' },
+              { label: 'Approved', value: 'Approved' },
+              { label: 'Rejected', value: 'Rejected' },
+              { label: '⭐ Highlighted', value: 'highlighted' },
+            ].map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => handleFilterChange(value)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition duration-200 border ${
+                  activeFilter === value
+                    ? 'text-white border-transparent'
+                    : 'text-gray-400 border-gray-700 hover:text-white hover:border-gray-500 bg-transparent'
+                }`}
+                style={activeFilter === value ? {
+                  background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)'
+                } : {}}
+              >
+                {label}
+                {activeFilter === value && totalCount > 0 && (
+                  <span className="ml-1.5 text-xs opacity-70">({totalCount})</span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -512,7 +568,13 @@ const KidsSubmission = () => {
           {!loading && submissions.length === 0 && (
             <div className="text-center py-12">
               <div className="text-gray-400 text-lg">No submissions found</div>
-              <p className="text-gray-500 mt-2">No submissions to display yet.</p>
+              <p className="text-gray-500 mt-2">
+                {activeFilter === 'highlighted'
+                  ? 'No highlighted submissions to display.'
+                  : activeFilter
+                  ? `No ${activeFilter.toLowerCase()} submissions to display.`
+                  : 'No submissions to display yet.'}
+              </p>
             </div>
           )}
         </div>
@@ -1129,10 +1191,12 @@ const KidsSubmission = () => {
 
       {/* Success Modal */}
       <SuccessModal
-        show={modal.show}
+        isOpen={modal.isOpen}
         type={modal.type}
         message={modal.message}
-        onClose={() => setModal({ show: false, type: '', message: '' })}
+        onClose={closeModal}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
       />
     </div>
   )
