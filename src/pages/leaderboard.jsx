@@ -36,6 +36,11 @@ function Leaderboard() {
   const [userAttempts, setUserAttempts] = useState([])
   const [userAttemptsLoading, setUserAttemptsLoading] = useState(false)
 
+  // ─── Global Leaderboard state ────────────────────────────────────────────
+  const [globalLeaderboard, setGlobalLeaderboard] = useState([])
+  const [globalPeriod, setGlobalPeriod] = useState('alltime')
+  const [globalLoading, setGlobalLoading] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [])
@@ -122,11 +127,31 @@ function Leaderboard() {
   const setMode = (mode) => {
     setViewMode(mode)
     setPage(1)
-    if (mode === 'byEmail') {
+    if (mode === 'global') {
+      fetchGlobalData('alltime')
+    } else if (mode === 'byEmail') {
       setTotalAllTime(true)
       fetchData(fromDate, toDate, 'byEmail', true, 1, search)
     } else {
       fetchData(fromDate, toDate, 'daily', false, 1, search)
+    }
+  }
+
+  const fetchGlobalData = async (period = 'alltime') => {
+    setGlobalPeriod(period)
+    setGlobalLoading(true)
+    try {
+      const response = await axios.get(`${API_BASE}/leaderboard?period=${period}&limit=100`)
+      if (response.data.success) {
+        setGlobalLeaderboard(response.data.data.leaderboard || [])
+      } else {
+        setGlobalLeaderboard([])
+      }
+    } catch (error) {
+      console.error('Failed to fetch global leaderboard:', error)
+      setGlobalLeaderboard([])
+    } finally {
+      setGlobalLoading(false)
     }
   }
 
@@ -219,8 +244,9 @@ function Leaderboard() {
               {/* View mode tabs */}
               <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
                 {[
-                  { key: 'daily', label: 'Daily' },
-                  { key: 'byEmail', label: 'Total' }
+                  { key: 'daily', label: 'Daily Quiz' },
+                  { key: 'byEmail', label: 'Quiz Total' },
+                  { key: 'global', label: '🌍 Global' },
                 ].map(tab => (
                   <button
                     key={tab.key}
@@ -288,7 +314,108 @@ function Leaderboard() {
           </div>
 
           {/* Table */}
-          {loading ? (
+          {viewMode === 'global' ? (
+            /* ── Global Leaderboard ──────────────────────────────── */
+            <div>
+              {/* Period filter */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-gray-400 text-sm">Period:</span>
+                {['weekly', 'monthly', 'alltime'].map(p => (
+                  <button
+                    key={p}
+                    onClick={() => fetchGlobalData(p)}
+                    className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                      globalPeriod === p
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                    }`}
+                  >
+                    {p === 'weekly' ? 'This Week' : p === 'monthly' ? 'This Month' : 'All Time'}
+                  </button>
+                ))}
+                <button
+                  onClick={() => fetchGlobalData(globalPeriod)}
+                  className="ml-2 flex items-center space-x-1 px-3 py-1 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 text-sm"
+                >
+                  <FiRefreshCw className="w-3 h-3" />
+                  <span>Refresh</span>
+                </button>
+                <span className="ml-auto text-xs text-gray-500">
+                  Points: 1 pt/quiz score + 10 pts/puzzle ⭐
+                </span>
+              </div>
+              {globalLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+                  <p className="text-gray-400 mt-4">Loading global leaderboard...</p>
+                </div>
+              ) : globalLeaderboard.length === 0 ? (
+                <div className="text-center py-12">
+                  <FiAward className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No data found for this period.</p>
+                </div>
+              ) : (
+                <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-700/50 text-sm text-gray-400">
+                    {globalLeaderboard.length} user(s) ranked
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-700">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Class</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Quiz Pts</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Puzzle Pts</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Quizzes</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Puzzles</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-700">
+                        {globalLeaderboard.map((entry) => (
+                          <tr
+                            key={entry.firebaseUid || entry.rank}
+                            className={`hover:bg-gray-700/50 transition-colors ${
+                              entry.rank <= 3 ? 'bg-purple-900/20' : ''
+                            }`}
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-lg font-bold text-white">
+                                {getRankIcon(entry.rank) || `#${entry.rank}`}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="text-sm font-medium text-white">{entry.name}</div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                              {entry.userClass || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-blue-400 font-semibold">{entry.quizPoints}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-orange-400 font-semibold">{entry.puzzlePoints}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-xl font-bold text-purple-400">{entry.totalPoints}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
+                              {entry.quizAttempts}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
+                              {entry.puzzlesCompleted}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
               <p className="text-gray-400 mt-4">Loading leaderboard...</p>
