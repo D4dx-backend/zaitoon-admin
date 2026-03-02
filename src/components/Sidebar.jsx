@@ -22,7 +22,8 @@ import {
   CommandLineIcon,
   Square3Stack3DIcon,
   SparklesIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  PaintBrushIcon
 } from '@heroicons/react/24/outline'
 import logo from '../assets/logo.png'
 import dxLogo from '../assets/dxLogoWhite.png'
@@ -50,6 +51,8 @@ const menuGroups = [
     items: [
       { label: 'Kids Submissions', path: '/kids-submissions', icon: UserGroupIcon },
       { label: 'Puzzles', path: '/puzzles', icon: PuzzlePieceIcon },
+      { label: 'Story Puzzle', path: '/story-puzzle', icon: BookOpenIcon },
+      { label: 'Coloring', path: '/coloring', icon: PaintBrushIcon },
     ]
   },
   {
@@ -73,8 +76,11 @@ const menuGroups = [
     ]
   },
   {
+    label: 'Analytics',
+    icon: ChartBarIcon,
     items: [
-      { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon }
+      { label: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+      { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon },
     ]
   }
 ]

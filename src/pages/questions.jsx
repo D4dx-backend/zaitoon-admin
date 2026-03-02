@@ -17,7 +17,7 @@ function Questions() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState(null)
-  const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' })
+  const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null })
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
@@ -69,12 +69,12 @@ function Questions() {
     }
   }
 
-  const showModal = (type, message) => {
-    setModal({ isOpen: true, type, message })
+  const showModal = (type, message, onConfirm = null, onCancel = null) => {
+    setModal({ isOpen: true, type, message, onConfirm, onCancel })
   }
 
   const closeModal = () => {
-    setModal({ isOpen: false, type: 'success', message: '' })
+    setModal({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null })
   }
 
   const handleInputChange = (e) => {
@@ -146,9 +146,7 @@ function Questions() {
     setShowForm(true)
   }
 
-  const handleDelete = async (questionId) => {
-    if (!window.confirm('Are you sure you want to delete this question?')) return
-
+  const confirmDelete = async (questionId) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
@@ -158,8 +156,6 @@ function Questions() {
 
       if (response.data.success) {
         showModal('success', 'Question deleted successfully')
-        // If we deleted the last item on the current page, and it's now empty,
-        // move back one page (if possible) to avoid showing an empty list.
         const isLastItemOnPage = questions.length === 1 && currentPage > 1
         const nextPage = isLastItemOnPage ? currentPage - 1 : currentPage
         fetchQuestions(nextPage)
@@ -169,6 +165,10 @@ function Questions() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDelete = (questionId) => {
+    showModal('confirmation', 'Are you sure you want to delete this question?', () => confirmDelete(questionId), null)
   }
 
   const resetForm = () => {
@@ -506,6 +506,8 @@ function Questions() {
         type={modal.type}
         message={modal.message}
         onClose={closeModal}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
       />
     </div>
   )

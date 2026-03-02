@@ -20,6 +20,9 @@ import AttemptDetail from './pages/attemptDetail'
 import QuizTest from './pages/quizTest'
 import Notifications from './pages/notifications'
 import Activity from './pages/activity'
+import StoryPuzzle from './pages/storyPuzzle'
+import Coloring from './pages/coloring'
+import Analytics from './pages/analytics'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -209,10 +212,34 @@ function App() {
           } 
         />
         <Route 
+          path="/analytics" 
+          element={
+            isAuthenticated ? 
+            <Analytics /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
           path="/activity" 
           element={
             isAuthenticated ? 
             <Activity /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/story-puzzle" 
+          element={
+            isAuthenticated ? 
+            <StoryPuzzle /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/coloring" 
+          element={
+            isAuthenticated ? 
+            <Coloring /> : 
             <Navigate to="/login" replace />
           } 
         />
