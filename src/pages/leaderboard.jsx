@@ -31,6 +31,10 @@ function Leaderboard() {
   const [page, setPage] = useState(1)
   const searchTimerRef = useRef(null)
 
+  // Quiz config filter
+  const [configs, setConfigs] = useState([])
+  const [selectedConfigId, setSelectedConfigId] = useState('')
+
   // User detail modal
   const [selectedUser, setSelectedUser] = useState(null)
   const [userAttempts, setUserAttempts] = useState([])
@@ -43,11 +47,24 @@ function Leaderboard() {
 
   useEffect(() => {
     fetchData()
+    fetchConfigs()
   }, [])
+
+  const fetchConfigs = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      const res = await axios.get(`${API_BASE}/quizzes/config/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.data.success) setConfigs(res.data.data || [])
+    } catch (e) {
+      console.error('Failed to fetch quiz configs:', e)
+    }
+  }
 
   const fetchData = useCallback(async (
     from = fromDate, to = toDate, mode = viewMode,
-    allTime = totalAllTime, p = page, s = search
+    allTime = totalAllTime, p = page, s = search, configId = selectedConfigId
   ) => {
     const isByEmail = mode === 'byEmail'
     if (!isByEmail && (!from || !to)) return
@@ -59,6 +76,7 @@ function Leaderboard() {
       params.set('page', p)
       params.set('limit', LIMIT)
       if (s && s.trim()) params.set('search', s.trim())
+      if (configId) params.set('configId', configId)
 
       let url
       if (isByEmail) {
@@ -98,7 +116,7 @@ function Leaderboard() {
     } finally {
       setLoading(false)
     }
-  }, [fromDate, toDate, viewMode, totalAllTime, page, search, API_BASE])
+  }, [fromDate, toDate, viewMode, totalAllTime, page, search, API_BASE, selectedConfigId])
 
   // Debounced search
   const handleSearchChange = (val) => {
@@ -106,21 +124,21 @@ function Leaderboard() {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
       setPage(1)
-      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, val)
+      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, val, selectedConfigId)
     }, 400)
   }
 
   const handlePageChange = (newPage) => {
     setPage(newPage)
-    fetchData(fromDate, toDate, viewMode, totalAllTime, newPage, search)
+    fetchData(fromDate, toDate, viewMode, totalAllTime, newPage, search, selectedConfigId)
   }
 
   const handleApplyRange = () => {
     setPage(1)
     if (viewMode === 'byEmail' && totalAllTime) {
-      fetchData(fromDate, toDate, viewMode, true, 1, search)
+      fetchData(fromDate, toDate, viewMode, true, 1, search, selectedConfigId)
     } else if (fromDate && toDate && fromDate <= toDate) {
-      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, search)
+      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, search, selectedConfigId)
     }
   }
 
@@ -131,9 +149,9 @@ function Leaderboard() {
       fetchGlobalData('alltime')
     } else if (mode === 'byEmail') {
       setTotalAllTime(true)
-      fetchData(fromDate, toDate, 'byEmail', true, 1, search)
+      fetchData(fromDate, toDate, 'byEmail', true, 1, search, selectedConfigId)
     } else {
-      fetchData(fromDate, toDate, 'daily', false, 1, search)
+      fetchData(fromDate, toDate, 'daily', false, 1, search, selectedConfigId)
     }
   }
 
@@ -160,8 +178,8 @@ function Leaderboard() {
     setTotalAllTime(checked)
     setPage(1)
     if (viewMode === 'byEmail') {
-      if (checked) fetchData(fromDate, toDate, viewMode, true, 1, search)
-      else if (fromDate && toDate) fetchData(fromDate, toDate, viewMode, false, 1, search)
+      if (checked) fetchData(fromDate, toDate, viewMode, true, 1, search, selectedConfigId)
+      else if (fromDate && toDate) fetchData(fromDate, toDate, viewMode, false, 1, search, selectedConfigId)
     }
   }
 
@@ -171,7 +189,7 @@ function Leaderboard() {
     setTotalAllTime(false)
     setPage(1)
     setSearch('')
-    fetchData(today(), today(), viewMode, false, 1, '')
+    fetchData(today(), today(), viewMode, false, 1, '', selectedConfigId)
   }
 
   // Fetch user's individual attempts for the modal
@@ -273,6 +291,25 @@ function Leaderboard() {
 
           {/* Filters row */}
           <div className="flex flex-wrap items-center gap-3 mb-6">
+            {/* Quiz selector — only when not Global mode */}
+            {viewMode !== 'global' && configs.length > 0 && (
+              <select
+                value={selectedConfigId}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setSelectedConfigId(val)
+                  setPage(1)
+                  fetchData(fromDate, toDate, viewMode, totalAllTime, 1, search, val)
+                }}
+                className="px-3 py-2 bg-gray-800 text-white text-sm rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">All Quizzes</option>
+                {configs.map(c => (
+                  <option key={c._id} value={c._id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+
             {/* Search */}
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

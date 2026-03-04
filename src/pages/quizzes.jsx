@@ -16,6 +16,8 @@ function Quizzes() {
   const API_BASE = import.meta.env.VITE_API_BASE_URL
   const [quizzes, setQuizzes] = useState([])
   const [questions, setQuestions] = useState([])
+  const [configs, setConfigs] = useState([])
+  const [filterConfigId, setFilterConfigId] = useState('')
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingQuiz, setEditingQuiz] = useState(null)
@@ -30,21 +32,37 @@ function Quizzes() {
     mlDescription: '',
     quizDate: '',
     questions: [],
-    status: 'Active'
+    status: 'Active',
+    quizConfigId: ''
   })
 
   useEffect(() => {
     fetchQuizzes(1)
     fetchQuestions()
+    fetchConfigs()
   }, [])
+
+  const fetchConfigs = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      const res = await axios.get(`${API_BASE}/quizzes/config/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.data.success) setConfigs(res.data.data || [])
+    } catch (e) {
+      console.error('Failed to fetch configs:', e)
+    }
+  }
 
   const fetchQuizzes = async (page = 1) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
+      const params = { page, limit: 20 }
+      if (filterConfigId) params.configId = filterConfigId
       const response = await axios.get(`${API_BASE}/quizzes`, {
         headers: { Authorization: `Bearer ${token}` },
-        params: { page, limit: 20 }
+        params
       })
       if (response.data.success) {
         setQuizzes(response.data.data.quizzes || [])
@@ -60,11 +78,14 @@ function Quizzes() {
     }
   }
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (configId = '') => {
     try {
       const token = localStorage.getItem('adminToken')
-      const response = await axios.get(`${API_BASE}/questions?limit=1000&sort=asc`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const params = { limit: 1000, sort: 'asc' }
+      if (configId) params.quizConfigId = configId
+      const response = await axios.get(`${API_BASE}/questions`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params
       })
       if (response.data.success) {
         const raw = response.data.data.questions || []
@@ -93,7 +114,12 @@ function Quizzes() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    if (name === 'quizConfigId') {
+      setFormData(prev => ({ ...prev, quizConfigId: value, questions: [] }))
+      fetchQuestions(value)
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }))
+    }
   }
 
   const handleQuestionToggle = (questionId) => {
@@ -144,6 +170,7 @@ function Quizzes() {
 
   const handleEdit = (quiz) => {
     setEditingQuiz(quiz)
+    const cfgId = quiz.quizConfigId || ''
     setFormData({
       title: quiz.title || '',
       mlTitle: quiz.mlTitle || '',
@@ -151,8 +178,10 @@ function Quizzes() {
       mlDescription: quiz.mlDescription || '',
       quizDate: quiz.quizDate ? new Date(quiz.quizDate).toISOString().split('T')[0] : '',
       questions: quiz.questions?.map(q => q._id || q) || [],
-      status: quiz.status || 'Active'
+      status: quiz.status || 'Active',
+      quizConfigId: cfgId
     })
+    fetchQuestions(cfgId)
     setShowForm(true)
   }
 
@@ -188,7 +217,8 @@ function Quizzes() {
       mlDescription: '',
       quizDate: '',
       questions: [],
-      status: 'Active'
+      status: 'Active',
+      quizConfigId: filterConfigId || ''
     })
     setEditingQuiz(null)
   }
@@ -208,20 +238,52 @@ function Quizzes() {
       <div className="flex-1 ml-64">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
             <h1 className="text-4xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
-              Quiz Management
+              Daily Quizzes
             </h1>
-            <button
-              onClick={() => {
-                resetForm()
-                setShowForm(true)
-              }}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <FiPlus className="w-5 h-5" />
-              <span>Create Quiz</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {configs.length > 0 && (
+                <select
+                  value={filterConfigId}
+                  onChange={(e) => {
+                    setFilterConfigId(e.target.value)
+                    setCurrentPage(1)
+                    // re-fetch with new filter
+                    setLoading(true)
+                    const token = localStorage.getItem('adminToken')
+                    const params = { page: 1, limit: 20 }
+                    if (e.target.value) params.configId = e.target.value
+                    axios.get(`${API_BASE}/quizzes`, {
+                      headers: { Authorization: `Bearer ${token}` },
+                      params
+                    }).then(r => {
+                      if (r.data.success) {
+                        setQuizzes(r.data.data.quizzes || [])
+                        if (r.data.data.pagination) setPagination(r.data.data.pagination)
+                      }
+                    }).catch(() => {}).finally(() => setLoading(false))
+                  }}
+                  className="px-3 py-2 bg-gray-800 text-white text-sm rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">All Quiz Programmes</option>
+                  {configs.map(c => (
+                    <option key={c._id} value={c._id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                onClick={() => {
+                  resetForm()
+                  fetchQuestions(filterConfigId || '')
+                  setShowForm(true)
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <FiPlus className="w-5 h-5" />
+                <span>Create Quiz</span>
+              </button>
+            </div>
           </div>
 
           {/* Quiz Form Modal */}
@@ -302,6 +364,22 @@ function Quizzes() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Quiz Programme
+                        </label>
+                        <select
+                          name="quizConfigId"
+                          value={formData.quizConfigId}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="">-- Select Programme --</option>
+                          {configs.map(c => (
+                            <option key={c._id} value={c._id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           Quiz Date *

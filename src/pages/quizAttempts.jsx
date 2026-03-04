@@ -46,11 +46,26 @@ function QuizAttempts() {
 
   // Quiz config (separate call to keep the summary banner)
   const [quizConfig, setQuizConfig] = useState(null)
+  const [configs, setConfigs] = useState([])
+  const [selectedConfigId, setSelectedConfigId] = useState('')
 
   useEffect(() => {
     fetchAttempts()
     fetchQuizConfig()
+    fetchConfigs()
   }, [])
+
+  const fetchConfigs = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      const response = await axios.get(`${API_BASE}/quizzes/config/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (response.data.success) setConfigs(response.data.data || [])
+    } catch (error) {
+      console.error('Failed to fetch configs:', error)
+    }
+  }
 
   const fetchQuizConfig = async () => {
     try {
@@ -67,7 +82,7 @@ function QuizAttempts() {
     }
   }
 
-  const fetchAttempts = useCallback(async (p = page, s = search, from = fromDate, to = toDate) => {
+  const fetchAttempts = useCallback(async (p = page, s = search, from = fromDate, to = toDate, cfgId = selectedConfigId) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
@@ -77,6 +92,7 @@ function QuizAttempts() {
       if (s && s.trim()) params.set('search', s.trim())
       if (from) params.set('startDate', from)
       if (to) params.set('endDate', to)
+      if (cfgId) params.set('configId', cfgId)
 
       const response = await axios.get(
         `${API_BASE}/quiz-attempts/admin/all?${params}`,
@@ -96,36 +112,36 @@ function QuizAttempts() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, fromDate, toDate, API_BASE])
+  }, [page, search, fromDate, toDate, selectedConfigId, API_BASE])
 
   const handleSearchChange = (val) => {
     setSearch(val)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
       setPage(1)
-      fetchAttempts(1, val, fromDate, toDate)
+      fetchAttempts(1, val, fromDate, toDate, selectedConfigId)
     }, 400)
   }
 
   const handleApplyDateRange = () => {
     setPage(1)
-    fetchAttempts(1, search, fromDate, toDate)
+    fetchAttempts(1, search, fromDate, toDate, selectedConfigId)
   }
 
   const handleClearDates = () => {
     setFromDate('')
     setToDate('')
     setPage(1)
-    fetchAttempts(1, search, '', '')
+    fetchAttempts(1, search, '', '', selectedConfigId)
   }
 
   const handlePageChange = (newPage) => {
     setPage(newPage)
-    fetchAttempts(newPage, search, fromDate, toDate)
+    fetchAttempts(newPage, search, fromDate, toDate, selectedConfigId)
   }
 
   const handleRefresh = () => {
-    fetchAttempts(page, search, fromDate, toDate)
+    fetchAttempts(page, search, fromDate, toDate, selectedConfigId)
   }
 
   const formatDate = (dateString) => {
@@ -155,7 +171,7 @@ function QuizAttempts() {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (response.data.success) {
-        await fetchAttempts(page, search, fromDate, toDate)
+        await fetchAttempts(page, search, fromDate, toDate, selectedConfigId)
       } else {
         showModal('error', response.data.message || 'Failed to delete attempt')
       }
@@ -186,13 +202,32 @@ function QuizAttempts() {
               </h1>
               <p className="text-gray-400 text-sm">View and manage all quiz attempts</p>
             </div>
-            <button
-              onClick={handleRefresh}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
-            >
-              <FiRefreshCw className="w-4 h-4" />
-              <span>Refresh</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              {configs.length > 0 && (
+                <select
+                  value={selectedConfigId}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    setSelectedConfigId(id)
+                    setPage(1)
+                    fetchAttempts(1, search, fromDate, toDate, id)
+                  }}
+                  className="px-3 py-2 bg-gray-800 text-white text-sm rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">All Quizzes</option>
+                  {configs.map(c => (
+                    <option key={c._id} value={c._id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                onClick={handleRefresh}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+              >
+                <FiRefreshCw className="w-4 h-4" />
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
 
           {/* Quiz Config Summary */}
