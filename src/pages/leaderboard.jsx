@@ -173,24 +173,6 @@ function Leaderboard() {
     }
   }
 
-  const fetchGlobalData = async (period = 'alltime') => {
-    setGlobalPeriod(period)
-    setGlobalLoading(true)
-    try {
-      const response = await axios.get(`${API_BASE}/leaderboard?period=${period}&limit=100`)
-      if (response.data.success) {
-        setGlobalLeaderboard(response.data.data.leaderboard || [])
-      } else {
-        setGlobalLeaderboard([])
-      }
-    } catch (error) {
-      console.error('Failed to fetch global leaderboard:', error)
-      setGlobalLeaderboard([])
-    } finally {
-      setGlobalLoading(false)
-    }
-  }
-
   const handleAllTimeChange = (e) => {
     const checked = e.target.checked
     setTotalAllTime(checked)
