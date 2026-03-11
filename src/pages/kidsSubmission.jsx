@@ -109,6 +109,11 @@ const KidsSubmission = () => {
     try {
       const formData = new FormData()
       
+      // Add userId - required by API
+      const adminData = JSON.parse(localStorage.getItem('user') || '{}')
+      const userId = adminData._id || adminData.id || 'admin-submission'
+      formData.append('userId', userId)
+      
       // Add all form fields
       Object.keys(submissionForm).forEach(key => {
         if (submissionForm[key]) {
@@ -129,6 +134,9 @@ const KidsSubmission = () => {
 
       const response = await fetch(`${API_BASE}/kids-submissions`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
         body: formData
       })
       
