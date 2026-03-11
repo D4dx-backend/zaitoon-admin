@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-function StatusModal({ isOpen, onClose, type = 'success', message = "Operation completed successfully!", onConfirm = null, onCancel = null }) {
+function StatusModal({ isOpen, onClose, type = 'success', message = "Operation completed successfully!", onConfirm = null, onCancel = null, confirmText = 'Delete', confirmClass = 'bg-red-600 hover:bg-red-700' }) {
   const [showAnimation, setShowAnimation] = useState(false)
 
   useEffect(() => {
@@ -192,9 +192,9 @@ function StatusModal({ isOpen, onClose, type = 'success', message = "Operation c
                   if (onConfirm) onConfirm()
                   onClose()
                 }}
-                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-200 font-medium"
+                className={`px-6 py-2 text-white rounded-lg transition duration-200 font-medium ${confirmClass}`}
               >
-                Delete
+                {confirmText}
               </button>
             </div>
           )}
