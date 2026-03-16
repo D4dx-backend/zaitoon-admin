@@ -42,7 +42,8 @@ function Questions() {
     points: 1,
     category: '',
     difficulty: 'Medium',
-    quizConfigId: configIdFromUrl
+    quizConfigId: configIdFromUrl,
+    optionCount: 4
   })
 
   useEffect(() => {
@@ -116,6 +117,26 @@ function Questions() {
     })
   }
 
+  const handleOptionCountChange = (newCount) => {
+    const count = parseInt(newCount)
+    setFormData(prev => {
+      const resizeArray = (arr) => {
+        if (arr.length < count) {
+          return [...arr, ...Array(count - arr.length).fill('')]
+        }
+        return arr.slice(0, count)
+      }
+      const newCorrectAnswer = prev.correctAnswer >= count ? 0 : prev.correctAnswer
+      return {
+        ...prev,
+        optionCount: count,
+        options: resizeArray(prev.options),
+        mlOptions: resizeArray(prev.mlOptions),
+        correctAnswer: newCorrectAnswer
+      }
+    })
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     
@@ -139,7 +160,10 @@ function Questions() {
       
       const method = editingQuestion ? 'put' : 'post'
       
-      const response = await axios[method](url, formData, {
+      // Strip UI-only field before sending to API
+      const { optionCount, ...payload } = formData
+
+      const response = await axios[method](url, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
@@ -158,16 +182,18 @@ function Questions() {
 
   const handleEdit = (question) => {
     setEditingQuestion(question)
+    const existingOptions = question.options || ['', '', '', '']
     setFormData({
       questionText: question.questionText || '',
       mlQuestionText: question.mlQuestionText || '',
-      options: question.options || ['', '', '', ''],
+      options: existingOptions,
       mlOptions: question.mlOptions || ['', '', '', ''],
       correctAnswer: question.correctAnswer || 0,
       points: question.points || 1,
       category: question.category || '',
       difficulty: question.difficulty || 'Medium',
-      quizConfigId: question.quizConfigId || filterConfigId || ''
+      quizConfigId: question.quizConfigId || filterConfigId || '',
+      optionCount: existingOptions.length
     })
     setShowForm(true)
   }
@@ -207,7 +233,8 @@ function Questions() {
       points: 1,
       category: '',
       difficulty: 'Medium',
-      quizConfigId: filterConfigId || ''
+      quizConfigId: filterConfigId || '',
+      optionCount: 4
     })
     setEditingQuestion(null)
   }
@@ -309,6 +336,30 @@ function Questions() {
                         className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-purple-500"
                         required
                       />
+                    </div>
+
+                    {/* Number of Options Selector */}
+                    <div className="flex items-center space-x-4 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
+                      <label className="text-sm font-medium text-gray-300 whitespace-nowrap">
+                        Number of Options *
+                      </label>
+                      <div className="flex space-x-2">
+                        {[2, 3, 4].map(n => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => handleOptionCountChange(n)}
+                            className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
+                              formData.optionCount === n
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-400">Default is 4</span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
