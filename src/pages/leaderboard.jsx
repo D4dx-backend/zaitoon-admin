@@ -44,6 +44,8 @@ function Leaderboard() {
   const [globalLeaderboard, setGlobalLeaderboard] = useState([])
   const [globalPeriod, setGlobalPeriod] = useState('alltime')
   const [globalLoading, setGlobalLoading] = useState(false)
+  const [globalPage, setGlobalPage] = useState(1)
+  const [globalPagination, setGlobalPagination] = useState({ total: 0, page: 1, totalPages: 1 })
 
   useEffect(() => {
     fetchData()
@@ -83,7 +85,13 @@ function Leaderboard() {
         if (!allTime) { params.set('startDate', from); params.set('endDate', to) }
         url = `${API_BASE}/quizzes/leaderboard/by-email?${params}`
       } else {
-        params.set('date', from === to ? from : to)
+        // Use date range when from !== to, otherwise single date
+        if (from && to && from !== to) {
+          params.set('startDate', from)
+          params.set('endDate', to)
+        } else {
+          params.set('date', from || to)
+        }
         url = `${API_BASE}/quizzes/leaderboard/daily?${params}`
       }
 
@@ -155,19 +163,24 @@ function Leaderboard() {
     }
   }
 
-  const fetchGlobalData = async (period = 'alltime') => {
+  const fetchGlobalData = async (period = 'alltime', p = 1) => {
     setGlobalPeriod(period)
+    setGlobalPage(p)
     setGlobalLoading(true)
     try {
-      const response = await axios.get(`${API_BASE}/leaderboard?period=${period}&limit=100`)
+      const response = await axios.get(`${API_BASE}/leaderboard?period=${period}&page=${p}&limit=${LIMIT}`)
       if (response.data.success) {
+        const pg = response.data.data.pagination || { total: 0, page: p, totalPages: 1 }
         setGlobalLeaderboard(response.data.data.leaderboard || [])
+        setGlobalPagination(pg)
       } else {
         setGlobalLeaderboard([])
+        setGlobalPagination({ total: 0, page: 1, totalPages: 1 })
       }
     } catch (error) {
       console.error('Failed to fetch global leaderboard:', error)
       setGlobalLeaderboard([])
+      setGlobalPagination({ total: 0, page: 1, totalPages: 1 })
     } finally {
       setGlobalLoading(false)
     }
@@ -201,8 +214,12 @@ function Leaderboard() {
     setUserAttemptsLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
+      const params = new URLSearchParams()
+      params.set('email', email)
+      params.set('limit', '50')
+      if (selectedConfigId) params.set('configId', selectedConfigId)
       const response = await axios.get(
-        `${API_BASE}/quiz-attempts/admin/all?email=${encodeURIComponent(email)}&limit=50`,
+        `${API_BASE}/quiz-attempts/admin/all?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (response.data.success) {
@@ -392,9 +409,9 @@ function Leaderboard() {
                   <p className="text-gray-400">No data found for this period.</p>
                 </div>
               ) : (
-                <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-                  <div className="px-4 py-2 bg-gray-700/50 text-sm text-gray-400">
-                    {globalLeaderboard.length} user(s) ranked
+                  <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-700/50 flex items-center justify-between text-sm text-gray-400">
+                    <span>Showing {(globalPagination.page - 1) * LIMIT + 1}–{Math.min(globalPagination.page * LIMIT, globalPagination.total)} of {globalPagination.total} user(s)</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -449,6 +466,29 @@ function Leaderboard() {
                       </tbody>
                     </table>
                   </div>
+                  {globalPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-t border-gray-700">
+                      <p className="text-sm text-gray-400">Page {globalPagination.page} of {globalPagination.totalPages}</p>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => fetchGlobalData(globalPeriod, globalPagination.page - 1)}
+                          disabled={globalPagination.page <= 1}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+                        >
+                          <FiChevronLeft className="w-4 h-4" />
+                          <span>Prev</span>
+                        </button>
+                        <button
+                          onClick={() => fetchGlobalData(globalPeriod, globalPagination.page + 1)}
+                          disabled={globalPagination.page >= globalPagination.totalPages}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+                        >
+                          <span>Next</span>
+                          <FiChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -469,7 +509,7 @@ function Leaderboard() {
               <div className="px-4 py-2 bg-gray-700/50 flex items-center justify-between text-sm text-gray-400">
                 <span>
                   Showing {(pagination.page - 1) * LIMIT + 1}–{Math.min(pagination.page * LIMIT, pagination.total)} of {pagination.total}
-                  {' '}{viewMode === 'byEmail' ? 'email(s)' : viewMode === 'total' ? 'user(s)' : 'attempt(s)'}
+                  {' '}{viewMode === 'byEmail' ? 'email(s)' : 'attempt(s)'}
                 </span>
               </div>
               <div className="overflow-x-auto">
