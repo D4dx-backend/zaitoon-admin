@@ -14,6 +14,7 @@ const KidsSubmission = () => {
   const [expandedCard, setExpandedCard] = useState(null)
   const [selectedSubmission, setSelectedSubmission] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
+  const [detailsRemarks, setDetailsRemarks] = useState('')
   const [modal, setModal] = useState({ isOpen: false, type: '', message: '', onConfirm: null, onCancel: null })
 
   // Pagination states
@@ -39,7 +40,8 @@ const KidsSubmission = () => {
     moreTitle: '',
     moreDescription: '',
     status: 'Pending',
-    highlight: 'Disable'
+    highlight: 'Disable',
+    adminRemarks: ''
   })
 
   // File upload states
@@ -240,6 +242,34 @@ const KidsSubmission = () => {
     }
   }
 
+  // Send admin remarks / suggestions via WhatsApp
+  const sendAdminRemarks = async () => {
+    if (!detailsRemarks.trim()) return
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/kids-submissions/${selectedSubmission._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ adminRemarks: detailsRemarks.trim() })
+      })
+      const data = await response.json()
+      if (data.success) {
+        showModal('success', 'Suggestions sent via WhatsApp!')
+        setSelectedSubmission({ ...selectedSubmission, adminRemarks: detailsRemarks.trim() })
+        fetchSubmissions(currentPage)
+      } else {
+        showModal('error', data.message || 'Failed to send suggestions')
+      }
+    } catch (error) {
+      showModal('error', 'Error sending suggestions')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Update submission highlight
   const updateSubmissionHighlight = async (submissionId, newHighlight) => {
     setLoading(true)
@@ -318,7 +348,8 @@ const KidsSubmission = () => {
       moreTitle: '',
       moreDescription: '',
       status: 'Pending',
-      highlight: 'Disable'
+      highlight: 'Disable',
+      adminRemarks: ''
     })
     setEditingSubmission(null)
     setShowForm(false)
@@ -346,7 +377,8 @@ const KidsSubmission = () => {
       moreTitle: submission.moreTitle || '',
       moreDescription: submission.moreDescription || '',
       status: submission.status || 'Pending',
-      highlight: submission.highlight || 'Disable'
+      highlight: submission.highlight || 'Disable',
+      adminRemarks: submission.adminRemarks || ''
     })
     setSelectedFileNames({
       coverImage: submission.coverImage ? submission.coverImage.split('/').pop() : '',
@@ -360,6 +392,7 @@ const KidsSubmission = () => {
 
   const viewSubmission = (submission) => {
     setSelectedSubmission(submission)
+    setDetailsRemarks(submission.adminRemarks || '')
     setShowDetails(true)
   }
 
@@ -1053,6 +1086,16 @@ const KidsSubmission = () => {
                 </div>
               )}
 
+              {/* Admin Remarks */}
+              {selectedSubmission.adminRemarks && (
+                <div>
+                  <h4 className="text-white font-semibold mb-3">Admin Remarks</h4>
+                  <div className="bg-purple-900/20 border border-purple-700/40 rounded-xl p-4">
+                    <p className="text-purple-200 whitespace-pre-wrap">{selectedSubmission.adminRemarks}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Submission Metadata */}
               <div>
                 <h4 className="text-white font-semibold mb-3">Submission Details</h4>
@@ -1082,6 +1125,28 @@ const KidsSubmission = () => {
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Admin Remarks / Suggestions */}
+                  <div className="space-y-2">
+                    <span className="text-gray-400 text-sm">Suggestions / Admin Remarks</span>
+                    <textarea
+                      value={detailsRemarks}
+                      onChange={(e) => setDetailsRemarks(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400 resize-none text-sm"
+                      placeholder="Write suggestions or feedback for the parent..."
+                      disabled={loading}
+                    />
+                    <button
+                      onClick={sendAdminRemarks}
+                      disabled={loading || !detailsRemarks.trim()}
+                      className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-semibold transition duration-200 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+                      style={{ background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)' }}
+                    >
+                      <span>📲</span>
+                      <span>Send via WhatsApp</span>
+                    </button>
                   </div>
                   
                   {/* Highlight Radio Buttons */}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Sidebar from '../components/Sidebar'
 import StatusModal from '../components/SuccessModal'
+import CustomDropdown from '../components/CustomDropdown'
 import { FiPlus, FiEdit3, FiTrash2, FiX } from 'react-icons/fi'
 import { HiClock, HiCalendar } from 'react-icons/hi'
 import logo from '../assets/logo.png'
@@ -55,13 +56,19 @@ function SingleStoryManagement() {
   const [editingStory, setEditingStory] = useState(null)
   const [selectedStory, setSelectedStory] = useState(null)
   const [expandedCard, setExpandedCard] = useState(null)
+  const [orderedStories, setOrderedStories] = useState([])
+  const [draggedIndex, setDraggedIndex] = useState(null)
+  const [dragOverIndex, setDragOverIndex] = useState(null)
+  const [hasReorderChanges, setHasReorderChanges] = useState(false)
+  const [savingOrder, setSavingOrder] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     mlTitle: '',
     readTime: '',
     description: '',
     tag: '',
-    priority: '1'
+    priority: '1',
+    highlight: 'Disable'
   })
   const [files, setFiles] = useState({
     coverImage: null,
@@ -124,6 +131,8 @@ function SingleStoryManagement() {
       const meta = responseData.meta || {}
       const safeTotalPages = meta.totalPages || 1
       setStories(responseData.data || [])
+      setOrderedStories(responseData.data || [])
+      setHasReorderChanges(false)
       setTotalStories(total)
       setTotalPages(safeTotalPages)
       if (total > 0 && page > safeTotalPages) {
@@ -359,7 +368,8 @@ function SingleStoryManagement() {
       readTime: story.readTime || '',
       description: story.description || '',
       tag: story.tag || '',
-      priority: typeof story.priority === 'number' && story.priority >= 1 ? String(story.priority) : '1'
+      priority: typeof story.priority === 'number' && story.priority >= 1 ? String(story.priority) : '1',
+      highlight: story.highlight || 'Disable'
     })
     setFiles({
       coverImage: null,
@@ -382,7 +392,8 @@ function SingleStoryManagement() {
       readTime: '',
       description: '',
       tag: '',
-      priority: '1'
+      priority: '1',
+      highlight: 'Disable'
     })
     setFiles({
       coverImage: null,
@@ -404,6 +415,99 @@ function SingleStoryManagement() {
   useEffect(() => {
     fetchStories(currentPage)
   }, [currentPage, fetchStories])
+
+  // Drag-and-drop handlers
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverIndex !== index) setDragOverIndex(index)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null)
+  }
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault()
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDraggedIndex(null)
+      setDragOverIndex(null)
+      return
+    }
+    const reordered = [...orderedStories]
+    const [moved] = reordered.splice(draggedIndex, 1)
+    reordered.splice(dropIndex, 0, moved)
+    // Drag only changes order — highlight is managed independently via the star toggle
+    setOrderedStories(reordered)
+    setHasReorderChanges(true)
+    setDraggedIndex(null)
+    setDragOverIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null)
+    setDragOverIndex(null)
+  }
+
+  const toggleHighlight = async (story, index) => {
+    const newHighlight = story.highlight === 'Enable' ? 'Disable' : 'Enable'
+    // Optimistic UI update
+    setOrderedStories(prev =>
+      prev.map((s, i) => i === index ? { ...s, highlight: newHighlight } : s)
+    )
+    try {
+      const token = localStorage.getItem('adminToken')
+      const fd = new FormData()
+      fd.append('highlight', newHighlight)
+      await axios.put(`${API_BASE_URL}/single-stories/${story._id}`, fd, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    } catch (err) {
+      // Revert on failure
+      setOrderedStories(prev =>
+        prev.map((s, i) => i === index ? { ...s, highlight: story.highlight } : s)
+      )
+      setStatusModalType('error')
+      setStatusMessage('Failed to update highlight')
+      setShowStatusModal(true)
+    }
+  }
+
+  const handleSaveOrder = async () => {
+    setSavingOrder(true)
+    setStatusModalType('loading')
+    setStatusMessage('Saving story order...')
+    setShowStatusModal(true)
+    try {
+      const token = localStorage.getItem('adminToken')
+      const updates = orderedStories
+        .map((story, index) => ({ story, newPriority: index + 1 }))
+        .filter(({ story, newPriority }) => story.priority !== newPriority)
+      await Promise.all(
+        updates.map(({ story, newPriority }) => {
+          const fd = new FormData()
+          fd.append('priority', String(newPriority))
+          return axios.put(`${API_BASE_URL}/single-stories/${story._id}`, fd, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        })
+      )
+      setStatusModalType('success')
+      setStatusMessage('Story order saved successfully!')
+      setHasReorderChanges(false)
+      fetchStories(currentPage)
+    } catch (err) {
+      setStatusModalType('error')
+      setStatusMessage(err.response?.data?.message || 'Failed to save order')
+    } finally {
+      setSavingOrder(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black flex">
@@ -429,25 +533,48 @@ function SingleStoryManagement() {
                 ></div>
               </h1>
             </div>
+            <div className="flex items-center space-x-3">
+              {hasReorderChanges && (
+                <button
+                  onClick={handleSaveOrder}
+                  disabled={savingOrder}
+                  className="flex items-center justify-center space-x-2 text-white transition duration-200 disabled:opacity-50"
+                  style={{
+                    background: 'linear-gradient(90.05deg, #16a34a 6.68%, #15803d 49.26%, #166534 91.85%)',
+                    width: '160px',
+                    height: '36px',
+                    borderRadius: '18px',
+                    fontFamily: 'Fredoka One',
+                    fontWeight: '400',
+                    fontSize: '14px',
+                    lineHeight: '100%',
+                    letterSpacing: '0%',
+                    textAlign: 'center'
+                  }}
+                >
+                  <span>{savingOrder ? 'Saving...' : 'Save Order'}</span>
+                </button>
+              )}
               <button
                 onClick={() => setShowForm(true)}
-              className="flex items-center justify-center space-x-2 text-white transition duration-200"
-              style={{
-                background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)',
-                width: '160px',
-                height: '36px',
-                borderRadius: '18px',
-                fontFamily: 'Fredoka One',
-                fontWeight: '400',
-                fontSize: '14px',
-                lineHeight: '100%',
-                letterSpacing: '0%',
-                textAlign: 'center'
-              }}
-            >
-              <FiPlus className="w-3 h-3" />
-              <span>Add Story</span>
+                className="flex items-center justify-center space-x-2 text-white transition duration-200"
+                style={{
+                  background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)',
+                  width: '160px',
+                  height: '36px',
+                  borderRadius: '18px',
+                  fontFamily: 'Fredoka One',
+                  fontWeight: '400',
+                  fontSize: '14px',
+                  lineHeight: '100%',
+                  letterSpacing: '0%',
+                  textAlign: 'center'
+                }}
+              >
+                <FiPlus className="w-3 h-3" />
+                <span>Add Story</span>
               </button>
+            </div>
         </div>
       </div>
 
@@ -559,6 +686,21 @@ function SingleStoryManagement() {
                   value={formData.tag}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                />
+              </div>
+
+              {/* Highlight */}
+              <div>
+                <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Highlight</label>
+                <CustomDropdown
+                  options={[
+                    { value: 'Enable', label: 'Enable' },
+                    { value: 'Disable', label: 'Disable' }
+                  ]}
+                  value={formData.highlight}
+                  onChange={(value) => setFormData(prev => ({ ...prev, highlight: value }))}
+                  placeholder="Select highlight status..."
+                  className="w-full"
                 />
               </div>
 
@@ -756,12 +898,24 @@ function SingleStoryManagement() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {stories.map((story) => {
+            {orderedStories.map((story, index) => {
               const isThisCardExpanded = expandedCard === story._id
               const currentStory = expandedCard === story._id && selectedStory ? selectedStory : story
+              const isDragging = draggedIndex === index
+              const isDragOver = dragOverIndex === index
               
               return (
-                <div key={story._id}>
+                <div
+                  key={story._id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  style={{ opacity: isDragging ? 0.4 : 1, cursor: 'grab' }}
+                  className={isDragOver ? 'outline outline-2 outline-green-400 rounded-lg' : ''}
+                >
                   {/* Story Card */}
                   <div 
                     className={`relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 w-[180px] h-[220px] ${
@@ -800,6 +954,27 @@ function SingleStoryManagement() {
                         </span>
                       </div>
                       
+                      {/* Highlight Toggle Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleHighlight(story, index)
+                        }}
+                        title={story.highlight === 'Enable' ? 'Remove highlight' : 'Set as highlighted'}
+                        className="absolute top-2 right-2 z-20 w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110"
+                        style={{
+                          background: story.highlight === 'Enable' ? 'rgba(234,179,8,0.9)' : 'rgba(0,0,0,0.45)',
+                          border: story.highlight === 'Enable' ? '1.5px solid #fbbf24' : '1.5px solid rgba(255,255,255,0.2)'
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                          className="w-4 h-4"
+                          style={{ color: story.highlight === 'Enable' ? '#fff' : 'rgba(255,255,255,0.5)' }}
+                        >
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                      </button>
+
                       {/* Title Overlay */}
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 z-10">
                         <h3 className="text-white text-sm font-semibold truncate mb-1">
@@ -840,9 +1015,16 @@ function SingleStoryManagement() {
                             {/* Header with Close Button */}
                             <div className="flex justify-between items-start mb-6">
                               <div className="flex-1">
-                                <h1 className="text-white text-2xl font-bold mb-2" style={{ fontFamily: 'Archivo Black' }}>
-                                  {currentStory.title}
-                                </h1>
+                                <div className="flex items-center space-x-3 mb-2">
+                                  <h1 className="text-white text-2xl font-bold" style={{ fontFamily: 'Archivo Black' }}>
+                                    {currentStory.title}
+                                  </h1>
+                                  {currentStory.highlight === 'Enable' && (
+                                    <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full whitespace-nowrap">
+                                      Highlighted
+                                    </span>
+                                  )}
+                                </div>
                                 {currentStory.mlTitle && (
                                   <p className="text-gray-300 text-base mb-3">
                                     {currentStory.mlTitle}
