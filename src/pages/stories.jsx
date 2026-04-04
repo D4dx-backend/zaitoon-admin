@@ -36,6 +36,8 @@ function Stories() {
   const [selectedEpisode, setSelectedEpisode] = useState(null)
   const [showEpisodeDetails, setShowEpisodeDetails] = useState(false)
   const [dragEpisodeId, setDragEpisodeId] = useState(null)
+  const [draggingStoryId, setDraggingStoryId] = useState(null)
+  const [pendingStoryOrder, setPendingStoryOrder] = useState(false)
   
   // Form data
   const [storyForm, setStoryForm] = useState({
@@ -548,6 +550,53 @@ function Stories() {
     }
   }
 
+  // ── Story-level drag-and-drop reorder ─────────────────────────────────────
+  const handleStoryDragStart = (_e, id) => {
+    setDraggingStoryId(id)
+  }
+
+  const handleStoryDragOver = (e, targetId) => {
+    e.preventDefault()
+    if (!draggingStoryId || draggingStoryId === targetId) return
+    setStories((prev) => {
+      const fromIndex = prev.findIndex((s) => s._id === draggingStoryId)
+      const toIndex = prev.findIndex((s) => s._id === targetId)
+      if (fromIndex === -1 || toIndex === -1) return prev
+      const updated = [...prev]
+      const [moved] = updated.splice(fromIndex, 1)
+      updated.splice(toIndex, 0, moved)
+      return updated
+    })
+  }
+
+  const handleStoryDrop = async (e) => {
+    e.preventDefault()
+    setDraggingStoryId(null)
+    setPendingStoryOrder(true)
+  }
+
+  const handleStoryDragEnd = () => {
+    setDraggingStoryId(null)
+  }
+
+  const saveStoryOrder = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      await fetch(`${API_BASE}/stories/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ storyIds: stories.map((s) => s._id) })
+      })
+      setPendingStoryOrder(false)
+    } catch (err) {
+      console.error('Failed to save story order:', err)
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Handle card expand
   const handleCardExpand = (storyId) => {
     // Keep track of which story is currently expanded so actions
@@ -913,13 +962,33 @@ function Stories() {
               </button>
             </div>
           ) : (
+            <>
+              {pendingStoryOrder && (
+                <div className="flex items-center justify-between px-4 py-2 mb-4 bg-green-500/10 border border-green-500/40 rounded-xl">
+                  <span className="text-green-400 text-sm font-medium">Drag to reorder — save when done</span>
+                  <button
+                    onClick={saveStoryOrder}
+                    className="px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-lg transition"
+                  >
+                    Save Order
+                  </button>
+                </div>
+              )}
             <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {stories.map((story) => {
                 const isThisCardExpanded = expandedCard === story._id
                 const currentStory = expandedCard === story._id && selectedStory ? selectedStory : story
                 
                 return (
-                  <div key={story._id}>
+                  <div
+                    key={story._id}
+                    draggable
+                    onDragStart={(e) => handleStoryDragStart(e, story._id)}
+                    onDragOver={(e) => handleStoryDragOver(e, story._id)}
+                    onDrop={handleStoryDrop}
+                    onDragEnd={handleStoryDragEnd}
+                    className={`transition-opacity duration-150 group rounded-lg ${draggingStoryId === story._id ? 'opacity-40' : 'opacity-100'} ${pendingStoryOrder && draggingStoryId !== story._id ? 'ring-1 ring-green-500/40' : ''}`}
+                  >
                     {/* Story Card */}
                     <div 
                       className={`relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 w-[180px] h-[220px] ${
@@ -935,6 +1004,12 @@ function Stories() {
                         }
                       }}
                     >
+                      {/* Drag handle badge – hidden until hover on outer wrapper */}
+                      <div className="absolute top-1 left-1 z-20 rounded bg-black/50 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M10 4h.01M14 4h.01M10 9h.01M14 9h.01M10 14h.01M14 14h.01M10 19h.01M14 19h.01" />
+                        </svg>
+                      </div>
                       {/* Cover Image with Overlay Titles */}
                       <div className="relative w-full h-full overflow-hidden">
                         {story.coverImage ? (
@@ -1406,6 +1481,7 @@ function Stories() {
                 )
               })}
             </div>
+          </>
           )}
       </div>
 
