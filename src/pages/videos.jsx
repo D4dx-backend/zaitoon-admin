@@ -11,7 +11,8 @@ import {
   FiTrash2,
   FiPlay,
   FiVideo,
-  FiTrendingUp
+  FiTrendingUp,
+  FiMenu
 } from 'react-icons/fi'
 import { HiCalendar } from 'react-icons/hi'
 import gradient from '../assets/gradiantRight.png'
@@ -32,6 +33,12 @@ function Videos() {
   const [draggingVideoId, setDraggingVideoId] = useState(null)
   const [draggingMainVideoId, setDraggingMainVideoId] = useState(null)
   const [pendingVideoOrder, setPendingVideoOrder] = useState(false)
+  const [draggingCategoryId, setDraggingCategoryId] = useState(null)
+  const [dragOverCategoryId, setDragOverCategoryId] = useState(null)
+  const [pendingCategoryOrder, setPendingCategoryOrder] = useState(false)
+  const [draggingTrendingId, setDraggingTrendingId] = useState(null)
+  const [dragOverTrendingId, setDragOverTrendingId] = useState(null)
+  const [pendingTrendingOrder, setPendingTrendingOrder] = useState(false)
   const [showCategoryTable, setShowCategoryTable] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 10 })
@@ -99,7 +106,7 @@ function Videos() {
   // Fetch categories
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE}/videos-categories`)
+      const response = await fetch(`${API_BASE}/videos-categories?limit=200`)
       const data = await response.json()
       if (data.success) {
         setCategories(data.data.categories)
@@ -172,6 +179,33 @@ function Videos() {
       showModal('error', 'Error adding to trending')
     } finally {
       setAddTrendingLoading(false)
+    }
+  }
+
+  // Save trending order
+  const saveTrendingOrder = async () => {
+    setTrendingLoading(true)
+    try {
+      const trendingIds = trending.map((t) => t._id)
+      const response = await fetch(`${API_BASE}/videos/trending/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ trendingIds })
+      })
+      const data = await response.json()
+      if (data.success) {
+        showModal('success', 'Trending order saved!')
+        setPendingTrendingOrder(false)
+      } else {
+        showModal('error', data.message || 'Failed to save trending order')
+      }
+    } catch (error) {
+      showModal('error', 'Error saving trending order')
+    } finally {
+      setTrendingLoading(false)
     }
   }
 
@@ -428,6 +462,33 @@ function Videos() {
       }
     } catch (error) {
       showModal('error', 'Error updating category')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Reorder categories
+  const saveCategoryPriority = async () => {
+    setLoading(true)
+    try {
+      const order = categories.map((cat, index) => ({ id: cat._id, priority: index }))
+      const response = await fetch(`${API_BASE}/videos-categories/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ order })
+      })
+      const data = await response.json()
+      if (data.success) {
+        showModal('success', 'Category order saved!')
+        setPendingCategoryOrder(false)
+      } else {
+        showModal('error', data.message || 'Failed to save order')
+      }
+    } catch (error) {
+      showModal('error', 'Error saving category order')
     } finally {
       setLoading(false)
     }
@@ -884,10 +945,24 @@ function Videos() {
                 
                 {/* Management Table */}
                 <div className="scroll-indicator">
+                  {pendingCategoryOrder && (
+                    <div className="flex justify-end px-4 pb-3">
+                      <button
+                        onClick={saveCategoryPriority}
+                        disabled={loading}
+                        className="flex items-center space-x-2 px-4 py-2 text-white rounded-lg transition duration-200 text-sm"
+                        style={{ background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)', borderRadius: '12px' }}
+                      >
+                        <FiSave className="w-4 h-4" />
+                        <span>{loading ? 'Saving...' : 'Save Order'}</span>
+                      </button>
+                    </div>
+                  )}
                   <div className="max-h-[60vh] overflow-y-auto overflow-x-auto scrollbar-hide scroll-smooth">
                     <table className="w-full">
                       <thead className="sticky top-0 bg-transparent backdrop-blur-sm z-10">
                         <tr className="border-b border-gray-700/50">
+                          <th className="text-left py-3 px-2 text-gray-500 font-semibold w-8"></th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Image</th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Title</th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Videos Count</th>
@@ -897,7 +972,38 @@ function Videos() {
                       </thead>
                       <tbody>
                         {categories.map((category) => (
-                          <tr key={category._id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition duration-200">
+                          <tr
+                            key={category._id}
+                            draggable
+                            onDragStart={() => setDraggingCategoryId(category._id)}
+                            onDragOver={(e) => { e.preventDefault(); setDragOverCategoryId(category._id) }}
+                            onDrop={() => {
+                              if (!draggingCategoryId || draggingCategoryId === category._id) return
+                              const from = categories.findIndex(c => c._id === draggingCategoryId)
+                              const to = categories.findIndex(c => c._id === category._id)
+                              if (from === -1 || to === -1) return
+                              const reordered = [...categories]
+                              const [moved] = reordered.splice(from, 1)
+                              reordered.splice(to, 0, moved)
+                              setCategories(reordered)
+                              setPendingCategoryOrder(true)
+                              setDraggingCategoryId(null)
+                              setDragOverCategoryId(null)
+                            }}
+                            onDragEnd={() => { setDraggingCategoryId(null); setDragOverCategoryId(null) }}
+                            className={`border-b border-gray-800/50 transition duration-200 ${
+                              draggingCategoryId === category._id
+                                ? 'opacity-40'
+                                : dragOverCategoryId === category._id
+                                ? 'bg-purple-900/30 border-purple-500/50'
+                                : 'hover:bg-gray-800/30'
+                            }`}
+                          >
+                            <td className="py-4 px-2">
+                              <span className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300 flex items-center justify-center">
+                                <FiMenu className="w-4 h-4" />
+                              </span>
+                            </td>
                             <td className="py-4 px-4">
                               {category.image ? (
                                 <img
@@ -1214,43 +1320,85 @@ function Videos() {
                 No trending videos. Add videos from your existing video list.
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {trending.map((entry) => {
-                  const v = entry.video
-                  if (!v) return null
-                  return (
-                    <div
-                      key={entry._id}
-                      className="relative bg-gray-900 rounded-lg overflow-hidden border border-gray-700 hover:border-gray-600 transition-all"
+              <>
+                {pendingTrendingOrder && (
+                  <div className="flex items-center justify-between px-4 py-2 mb-4 bg-purple-500/10 border border-purple-500/40 rounded-xl">
+                    <span className="text-purple-400 text-sm font-medium">Drag to reorder — save when done</span>
+                    <button
+                      onClick={saveTrendingOrder}
+                      disabled={trendingLoading}
+                      className="flex items-center space-x-2 px-4 py-1.5 text-white text-sm font-semibold rounded-lg transition"
+                      style={{ background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)' }}
                     >
-                      <div className="relative aspect-[16/9] overflow-hidden">
-                        {v.thumbnail ? (
-                          <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover" />
-                        ) : v.video ? (
-                          <video src={v.video} className="w-full h-full object-cover" muted />
-                        ) : (
-                          <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                            <FiVideo className="w-10 h-10 text-gray-500" />
+                      <FiSave className="w-4 h-4" />
+                      <span>{trendingLoading ? 'Saving...' : 'Save Order'}</span>
+                    </button>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {trending.map((entry) => {
+                    const v = entry.video
+                    if (!v) return null
+                    return (
+                      <div
+                        key={entry._id}
+                        draggable
+                        onDragStart={() => setDraggingTrendingId(entry._id)}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverTrendingId(entry._id) }}
+                        onDrop={() => {
+                          if (!draggingTrendingId || draggingTrendingId === entry._id) return
+                          const from = trending.findIndex(t => t._id === draggingTrendingId)
+                          const to = trending.findIndex(t => t._id === entry._id)
+                          if (from === -1 || to === -1) return
+                          const reordered = [...trending]
+                          const [moved] = reordered.splice(from, 1)
+                          reordered.splice(to, 0, moved)
+                          setTrending(reordered)
+                          setPendingTrendingOrder(true)
+                          setDraggingTrendingId(null)
+                          setDragOverTrendingId(null)
+                        }}
+                        onDragEnd={() => { setDraggingTrendingId(null); setDragOverTrendingId(null) }}
+                        className={`relative bg-gray-900 rounded-lg overflow-hidden border transition-all ${
+                          draggingTrendingId === entry._id
+                            ? 'opacity-40 border-gray-700'
+                            : dragOverTrendingId === entry._id
+                            ? 'border-purple-500 shadow-lg shadow-purple-500/20'
+                            : 'border-gray-700 hover:border-gray-600'
+                        }`}
+                      >
+                        <div className="relative aspect-[16/9] overflow-hidden cursor-grab active:cursor-grabbing">
+                          {v.thumbnail ? (
+                            <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover" />
+                          ) : v.video ? (
+                            <video src={v.video} className="w-full h-full object-cover" muted />
+                          ) : (
+                            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                              <FiVideo className="w-10 h-10 text-gray-500" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <FiPlay className="w-10 h-10 text-white" />
                           </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                          <FiPlay className="w-10 h-10 text-white" />
+                          <div className="absolute top-2 left-2 text-gray-400 bg-black/50 rounded p-1">
+                            <FiMenu className="w-3 h-3" />
+                          </div>
+                        </div>
+                        <div className="p-3 flex justify-between items-center">
+                          <h3 className="text-white text-sm font-semibold truncate flex-1 mr-2">{v.title}</h3>
+                          <button
+                            onClick={() => removeFromTrending(entry._id)}
+                            className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                            title="Remove from trending"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-                      <div className="p-3 flex justify-between items-center">
-                        <h3 className="text-white text-sm font-semibold truncate flex-1 mr-2">{v.title}</h3>
-                        <button
-                          onClick={() => removeFromTrending(entry._id)}
-                          className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition"
-                          title="Remove from trending"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              </>
             )}
           </div>
         </div>
