@@ -30,6 +30,8 @@ function Videos() {
   const [categoryVideos, setCategoryVideos] = useState([])
   const [categoryVideosLoading, setCategoryVideosLoading] = useState(false)
   const [draggingVideoId, setDraggingVideoId] = useState(null)
+  const [draggingMainVideoId, setDraggingMainVideoId] = useState(null)
+  const [pendingVideoOrder, setPendingVideoOrder] = useState(false)
   const [showCategoryTable, setShowCategoryTable] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, limit: 10 })
@@ -589,6 +591,53 @@ function Videos() {
   const handleVideoDragEnd = () => {
     setDraggingVideoId(null)
   }
+
+  // ── Main video list drag-and-drop reorder ─────────────────────────────────
+  const handleMainVideoDragStart = (_e, id) => {
+    setDraggingMainVideoId(id)
+  }
+
+  const handleMainVideoDragOver = (e, targetId) => {
+    e.preventDefault()
+    if (!draggingMainVideoId || draggingMainVideoId === targetId) return
+    setVideos((prev) => {
+      const fromIndex = prev.findIndex((v) => v._id === draggingMainVideoId)
+      const toIndex = prev.findIndex((v) => v._id === targetId)
+      if (fromIndex === -1 || toIndex === -1) return prev
+      const updated = [...prev]
+      const [moved] = updated.splice(fromIndex, 1)
+      updated.splice(toIndex, 0, moved)
+      return updated
+    })
+  }
+
+  const handleMainVideoDrop = async (e) => {
+    e.preventDefault()
+    setDraggingMainVideoId(null)
+    setPendingVideoOrder(true)
+  }
+
+  const handleMainVideoDragEnd = () => {
+    setDraggingMainVideoId(null)
+  }
+
+  const saveMainVideoOrder = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      await fetch(`${API_BASE}/videos/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ videoIds: videos.map((v) => v._id) })
+      })
+      setPendingVideoOrder(false)
+    } catch (err) {
+      console.error('Failed to save video order:', err)
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Edit handlers
   const editVideo = (video) => {
@@ -1239,13 +1288,33 @@ function Videos() {
               </button>
             </div>
           ) : (
+            <>
+              {pendingVideoOrder && (
+                <div className="flex items-center justify-between px-4 py-2 mb-4 bg-green-500/10 border border-green-500/40 rounded-xl">
+                  <span className="text-green-400 text-sm font-medium">Drag to reorder — save when done</span>
+                  <button
+                    onClick={saveMainVideoOrder}
+                    className="px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-lg transition"
+                  >
+                    Save Order
+                  </button>
+                </div>
+              )}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {videos.map((video) => {
                 const isThisCardExpanded = expandedCard === video._id
                 const currentVideo = expandedCard === video._id && selectedVideo ? selectedVideo : video
                 
                 return (
-                  <div key={video._id}>
+                  <div
+                    key={video._id}
+                    draggable
+                    onDragStart={(e) => handleMainVideoDragStart(e, video._id)}
+                    onDragOver={(e) => handleMainVideoDragOver(e, video._id)}
+                    onDrop={handleMainVideoDrop}
+                    onDragEnd={handleMainVideoDragEnd}
+                    className={`group transition-opacity duration-150 rounded-lg ${draggingMainVideoId === video._id ? 'opacity-40' : 'opacity-100'} ${pendingVideoOrder && draggingMainVideoId !== video._id ? 'ring-1 ring-green-500/40' : ''}`}
+                  >
                     {/* Video Card */}
                     <div 
                       className={`relative bg-gray-900 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer border-2 ${
@@ -1261,6 +1330,12 @@ function Videos() {
                         }
                       }}
                     >
+                      {/* Drag handle badge */}
+                      <div className="absolute top-1 left-1 z-20 rounded bg-black/50 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M10 4h.01M14 4h.01M10 9h.01M14 9h.01M10 14h.01M14 14h.01M10 19h.01M14 19h.01" />
+                        </svg>
+                      </div>
                       {/* Video Thumbnail */}
                       <div className="relative aspect-[16/9] overflow-hidden">
                         {video.thumbnail ? (
@@ -1455,6 +1530,7 @@ function Videos() {
                 )
               })}
             </div>
+            </>
           )}
 
           {/* Pagination */}
