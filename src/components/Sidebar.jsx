@@ -70,6 +70,7 @@ const menuGroups = [
     label: 'Marketing',
     icon: MegaphoneIcon,
     items: [
+      { label: 'Home Banner', path: '/home-banner', icon: SparklesIcon },
       { label: 'Banners', path: '/banners', icon: PhotoIcon },
       { label: 'Payment Banner', path: '/payment-banner', icon: CreditCardIcon },
       { label: 'Notifications', path: '/notifications', icon: BellAlertIcon },
