@@ -23,6 +23,7 @@ import Activity from './pages/activity'
 import StoryPuzzle from './pages/storyPuzzle'
 import Coloring from './pages/coloring'
 import Analytics from './pages/analytics'
+import HomeBanner from './pages/homeBanner'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -240,6 +241,14 @@ function App() {
           element={
             isAuthenticated ? 
             <Coloring /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/home-banner" 
+          element={
+            isAuthenticated ? 
+            <HomeBanner /> : 
             <Navigate to="/login" replace />
           } 
         />
