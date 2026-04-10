@@ -50,6 +50,7 @@ const menuGroups = [
     icon: UserGroupIcon,
     items: [
       { label: 'Kids Submissions', path: '/kids-submissions', icon: UserGroupIcon },
+      { label: 'Notices', path: '/notices', icon: MegaphoneIcon },
       { label: 'Puzzles', path: '/puzzles', icon: PuzzlePieceIcon },
       { label: 'Story Puzzle', path: '/story-puzzle', icon: BookOpenIcon },
       { label: 'Coloring', path: '/coloring', icon: PaintBrushIcon },

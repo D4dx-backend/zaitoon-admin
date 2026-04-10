@@ -24,6 +24,7 @@ import StoryPuzzle from './pages/storyPuzzle'
 import Coloring from './pages/coloring'
 import Analytics from './pages/analytics'
 import HomeBanner from './pages/homeBanner'
+import Notices from './pages/notices'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -209,6 +210,14 @@ function App() {
           element={
             isAuthenticated ? 
             <Notifications /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/notices" 
+          element={
+            isAuthenticated ? 
+            <Notices /> : 
             <Navigate to="/login" replace />
           } 
         />
