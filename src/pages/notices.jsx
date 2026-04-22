@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
 import SuccessModal from '../components/SuccessModal'
-import { FiPlus, FiEdit3, FiTrash2, FiX, FiCheck } from 'react-icons/fi'
+import { FiPlus, FiEdit3, FiTrash2, FiX, FiCheck, FiUpload, FiLink, FiImage } from 'react-icons/fi'
 import { HiCalendar } from 'react-icons/hi'
 
 function Notices() {
@@ -13,6 +13,11 @@ function Notices() {
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null })
 
   const [formData, setFormData] = useState({ title: '', message: '' })
+  const [imageFile, setImageFile] = useState(null)
+  const [imageLink, setImageLink] = useState('')
+  const [imagePreview, setImagePreview] = useState(null)
+  const [imageMode, setImageMode] = useState('none') // 'none' | 'upload' | 'link'
+  const fileInputRef = useRef(null)
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL
 
@@ -51,12 +56,21 @@ function Notices() {
   const openCreateForm = () => {
     setEditingNotice(null)
     setFormData({ title: '', message: '' })
+    setImageFile(null)
+    setImageLink('')
+    setImagePreview(null)
+    setImageMode('none')
     setShowForm(true)
   }
 
   const openEditForm = (notice) => {
     setEditingNotice(notice)
     setFormData({ title: notice.title, message: notice.message })
+    setImageFile(null)
+    setImageLink('')
+    setImagePreview(notice.image || null)
+    setImageMode(notice.image ? 'link' : 'none')
+    if (notice.image) setImageLink(notice.image)
     setShowForm(true)
   }
 
@@ -64,6 +78,25 @@ function Notices() {
     setShowForm(false)
     setEditingNotice(null)
     setFormData({ title: '', message: '' })
+    setImageFile(null)
+    setImageLink('')
+    setImagePreview(null)
+    setImageMode('none')
+  }
+
+  const handleImageFileChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setImageFile(file)
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  const clearImage = () => {
+    setImageFile(null)
+    setImageLink('')
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleSubmit = async (e) => {
@@ -79,10 +112,23 @@ function Notices() {
         : `${API_BASE}/admin/notices`
       const method = editingNotice ? 'PUT' : 'POST'
 
+      const body = new FormData()
+      body.append('type', 'app')
+      body.append('title', formData.title)
+      body.append('message', formData.message)
+
+      if (imageMode === 'upload' && imageFile) {
+        body.append('image', imageFile)
+      } else if (imageMode === 'link' && imageLink.trim()) {
+        body.append('imageLink', imageLink.trim())
+      } else if (editingNotice && editingNotice.image && imageMode === 'none') {
+        body.append('removeImage', 'true')
+      }
+
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ type: 'app', ...formData })
+        headers: { ...getAuthHeaders() },
+        body
       })
       const data = await res.json()
 
@@ -100,10 +146,12 @@ function Notices() {
 
   const handleToggleActive = async (notice) => {
     try {
+      const body = new FormData()
+      body.append('active', !notice.active)
       const res = await fetch(`${API_BASE}/admin/notices/${notice._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ active: !notice.active })
+        headers: { ...getAuthHeaders() },
+        body
       })
       const data = await res.json()
       if (data.success) {
@@ -203,10 +251,105 @@ function Notices() {
                     onChange={e => setFormData(prev => ({ ...prev, message: e.target.value }))}
                     placeholder="Notice message..."
                     rows={4}
-                    maxLength={600}
                     className="w-full bg-gray-800/60 border border-gray-700/60 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500/60 transition-colors resize-none"
                   />
-                  <p className="text-gray-600 text-xs mt-1 text-right">{formData.message.length}/600</p>
+                </div>
+
+                {/* Image Section (Optional) */}
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">
+                    Image <span className="text-gray-500 font-normal">(optional)</span>
+                  </label>
+
+                  {/* Mode Selector */}
+                  <div className="flex items-center space-x-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => { setImageMode('none'); clearImage() }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        imageMode === 'none'
+                          ? 'bg-gray-700 text-white'
+                          : 'bg-gray-800/60 text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      No Image
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setImageMode('upload'); setImageLink(''); setImagePreview(null) }}
+                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        imageMode === 'upload'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-800/60 text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      <FiUpload className="w-3 h-3" />
+                      <span>Upload File</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setImageMode('link'); setImageFile(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        imageMode === 'link'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-800/60 text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      <FiLink className="w-3 h-3" />
+                      <span>Image Link</span>
+                    </button>
+                  </div>
+
+                  {/* Upload File Input */}
+                  {imageMode === 'upload' && (
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageFileChange}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center space-x-2 px-4 py-3 bg-gray-800/60 border border-dashed border-gray-600 hover:border-purple-500/50 text-gray-400 hover:text-gray-300 rounded-xl text-sm transition-colors w-full justify-center"
+                      >
+                        <FiImage className="w-4 h-4" />
+                        <span>{imageFile ? imageFile.name : 'Click to select an image'}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Image Link Input */}
+                  {imageMode === 'link' && (
+                    <input
+                      type="url"
+                      value={imageLink}
+                      onChange={e => { setImageLink(e.target.value); setImagePreview(e.target.value) }}
+                      placeholder="https://example.com/image.jpg"
+                      className="w-full bg-gray-800/60 border border-gray-700/60 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500/60 transition-colors"
+                    />
+                  )}
+
+                  {/* Image Preview */}
+                  {imagePreview && (
+                    <div className="mt-3 relative inline-block">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="max-h-40 rounded-xl border border-gray-700/40 object-cover"
+                        onError={e => { e.target.style.display = 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={clearImage}
+                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 hover:bg-red-700 transition-colors"
+                      >
+                        <FiX className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex space-x-3 pt-1">
@@ -265,6 +408,14 @@ function Notices() {
                       <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-line">
                         {notice.message}
                       </p>
+                      {notice.image && (
+                        <img
+                          src={notice.image}
+                          alt=""
+                          className="mt-3 max-h-48 rounded-xl border border-gray-700/30 object-cover"
+                          onError={e => { e.target.style.display = 'none' }}
+                        />
+                      )}
                       <div className="flex items-center space-x-1 mt-2 text-gray-600 text-xs">
                         <HiCalendar className="w-3 h-3" />
                         <span>{formatDate(notice.createdAt)}</span>
