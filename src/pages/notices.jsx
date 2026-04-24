@@ -12,7 +12,7 @@ function Notices() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null })
 
-  const [formData, setFormData] = useState({ title: '', message: '' })
+  const [formData, setFormData] = useState({ title: '', message: '', senderName: '' })
   const [imageFile, setImageFile] = useState(null)
   const [imageLink, setImageLink] = useState('')
   const [imagePreview, setImagePreview] = useState(null)
@@ -55,7 +55,7 @@ function Notices() {
 
   const openCreateForm = () => {
     setEditingNotice(null)
-    setFormData({ title: '', message: '' })
+    setFormData({ title: '', message: '', senderName: '' })
     setImageFile(null)
     setImageLink('')
     setImagePreview(null)
@@ -65,7 +65,7 @@ function Notices() {
 
   const openEditForm = (notice) => {
     setEditingNotice(notice)
-    setFormData({ title: notice.title, message: notice.message })
+    setFormData({ title: notice.title, message: notice.message, senderName: notice.senderName || '' })
     setImageFile(null)
     setImageLink('')
     setImagePreview(notice.image || null)
@@ -77,7 +77,7 @@ function Notices() {
   const closeForm = () => {
     setShowForm(false)
     setEditingNotice(null)
-    setFormData({ title: '', message: '' })
+    setFormData({ title: '', message: '', senderName: '' })
     setImageFile(null)
     setImageLink('')
     setImagePreview(null)
@@ -96,6 +96,7 @@ function Notices() {
     setImageFile(null)
     setImageLink('')
     setImagePreview(null)
+    setImageMode('none')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -116,6 +117,8 @@ function Notices() {
       body.append('type', 'app')
       body.append('title', formData.title)
       body.append('message', formData.message)
+      if (formData.senderName.trim()) body.append('senderName', formData.senderName.trim())
+      else body.append('senderName', '')
 
       if (imageMode === 'upload' && imageFile) {
         body.append('image', imageFile)
@@ -240,6 +243,19 @@ function Notices() {
                     onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
                     placeholder="Notice title..."
                     maxLength={120}
+                    className="w-full bg-gray-800/60 border border-gray-700/60 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500/60 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">
+                    Sender Name <span className="text-gray-500 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.senderName}
+                    onChange={e => setFormData(prev => ({ ...prev, senderName: e.target.value }))}
+                    placeholder="e.g. Zaitoon Team, Editor, etc."
                     className="w-full bg-gray-800/60 border border-gray-700/60 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500/60 transition-colors"
                   />
                 </div>
@@ -397,6 +413,9 @@ function Notices() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
                         <h3 className="text-white font-semibold text-sm">{notice.title}</h3>
+                        {notice.senderName && (
+                          <span className="text-xs text-purple-400/80">— {notice.senderName}</span>
+                        )}
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           notice.active
                             ? 'bg-green-500/15 text-green-400'
