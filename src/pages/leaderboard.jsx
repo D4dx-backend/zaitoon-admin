@@ -131,8 +131,12 @@ function Leaderboard() {
     setSearch(val)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
-      setPage(1)
-      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, val, selectedConfigId)
+      if (viewMode === 'global') {
+        fetchGlobalData(globalPeriod, 1, val)
+      } else {
+        setPage(1)
+        fetchData(fromDate, toDate, viewMode, totalAllTime, 1, val, selectedConfigId)
+      }
     }, 400)
   }
 
@@ -163,12 +167,14 @@ function Leaderboard() {
     }
   }
 
-  const fetchGlobalData = async (period = 'alltime', p = 1) => {
+  const fetchGlobalData = async (period = 'alltime', p = 1, s = search) => {
     setGlobalPeriod(period)
     setGlobalPage(p)
     setGlobalLoading(true)
     try {
-      const response = await axios.get(`${API_BASE}/leaderboard?period=${period}&page=${p}&limit=${LIMIT}`)
+      const params = new URLSearchParams({ period, page: p, limit: LIMIT })
+      if (s && s.trim()) params.set('search', s.trim())
+      const response = await axios.get(`${API_BASE}/leaderboard?${params}`)
       if (response.data.success) {
         const pg = response.data.data.pagination || { total: 0, page: p, totalPages: 1 }
         setGlobalLeaderboard(response.data.data.leaderboard || [])
@@ -377,7 +383,7 @@ function Leaderboard() {
                 {['weekly', 'monthly', 'alltime'].map(p => (
                   <button
                     key={p}
-                    onClick={() => fetchGlobalData(p)}
+                    onClick={() => fetchGlobalData(p, 1, search)}
                     className={`px-3 py-1 rounded-md text-sm transition-colors ${
                       globalPeriod === p
                         ? 'bg-purple-600 text-white'
@@ -388,7 +394,7 @@ function Leaderboard() {
                   </button>
                 ))}
                 <button
-                  onClick={() => fetchGlobalData(globalPeriod)}
+                  onClick={() => fetchGlobalData(globalPeriod, 1, search)}
                   className="ml-2 flex items-center space-x-1 px-3 py-1 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 text-sm"
                 >
                   <FiRefreshCw className="w-3 h-3" />
@@ -471,7 +477,7 @@ function Leaderboard() {
                       <p className="text-sm text-gray-400">Page {globalPagination.page} of {globalPagination.totalPages}</p>
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => fetchGlobalData(globalPeriod, globalPagination.page - 1)}
+                          onClick={() => fetchGlobalData(globalPeriod, globalPagination.page - 1, search)}
                           disabled={globalPagination.page <= 1}
                           className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
                         >
@@ -479,7 +485,7 @@ function Leaderboard() {
                           <span>Prev</span>
                         </button>
                         <button
-                          onClick={() => fetchGlobalData(globalPeriod, globalPagination.page + 1)}
+                          onClick={() => fetchGlobalData(globalPeriod, globalPagination.page + 1, search)}
                           disabled={globalPagination.page >= globalPagination.totalPages}
                           className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
                         >
