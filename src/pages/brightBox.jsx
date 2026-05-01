@@ -30,6 +30,8 @@ const BrightBox = () => {
   const [showCategoryTable, setShowCategoryTable] = useState(false)
   const [expandedStory, setExpandedStory] = useState(null)
   const [showStoriesTable, setShowStoriesTable] = useState(false)
+  const [categoryStories, setCategoryStories] = useState([])
+  const [categoryStoriesLoading, setCategoryStoriesLoading] = useState(false)
 
   // Pagination states
   const [bbPage, setBbPage] = useState(1)
@@ -243,6 +245,29 @@ const BrightBox = () => {
     fetchBrightBoxStories(storiesPage)
   }, [storiesPage])
 
+  // Fetch all stories for the selected category when the modal opens
+  useEffect(() => {
+    if (!expandedCategory) {
+      setCategoryStories([])
+      return
+    }
+    const fetchCategoryStories = async () => {
+      setCategoryStoriesLoading(true)
+      try {
+        const response = await fetch(`${API_BASE}/bright-box-stories?category=${expandedCategory._id}&all=true`)
+        const data = await response.json()
+        if (data.success) {
+          setCategoryStories(data.data.brightBoxStories)
+        }
+      } catch (error) {
+        console.error('Error fetching category stories:', error)
+      } finally {
+        setCategoryStoriesLoading(false)
+      }
+    }
+    fetchCategoryStories()
+  }, [expandedCategory])
+
   // Modal functions
   const showModal = (type, message, onConfirm = null) => {
     setModal({ isOpen: true, type, message, onConfirm })
@@ -430,6 +455,7 @@ const BrightBox = () => {
         setShowBrightBoxStoryForm(false)
         setStoriesPage(1)
         fetchBrightBoxStories(1)
+        fetchBrightBoxes(bbPage)
       } else {
         showModal('error', data.message || 'Failed to create bright box story')
       }
@@ -528,9 +554,12 @@ const BrightBox = () => {
         
         if (data.success) {
           showModal('success', 'Bright Box Story deleted successfully!')
+          // Refresh category modal list if open
+          setCategoryStories(prev => prev.filter(s => s._id !== id))
           const newStoriesPage = brightBoxStories.length === 1 && storiesPage > 1 ? storiesPage - 1 : storiesPage
           setStoriesPage(newStoriesPage)
           fetchBrightBoxStories(newStoriesPage)
+          fetchBrightBoxes(bbPage)
         } else {
           showModal('error', data.message || 'Failed to delete bright box story')
         }
@@ -719,7 +748,7 @@ const BrightBox = () => {
                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-4">
                  {/* Category Cards - Limited Display */}
                  {brightBoxes.slice(0, 5).map((brightBox) => {
-                   const storyCount = getStoriesByCategory(brightBox._id).length
+                   const storyCount = brightBox.storyCount ?? 0
                    
                    return (
                      <div 
@@ -882,7 +911,7 @@ const BrightBox = () => {
                       </thead>
                       <tbody>
                         {brightBoxes.map((brightBox) => {
-                          const totalStories = getStoriesByCategory(brightBox._id).length
+                          const totalStories = brightBox.storyCount ?? 0
                           
                           return (
                             <tr
@@ -1186,7 +1215,7 @@ const BrightBox = () => {
                   <div className="flex items-center space-x-4 text-sm text-gray-400">
                     <div className="flex items-center space-x-1">
                       <FiFile className="w-4 h-4 text-green-400" />
-                      <span>{getStoriesByCategory(expandedCategory._id).length} stories</span>
+                      <span>{categoryStoriesLoading ? '…' : categoryStories.length} stories</span>
                     </div>
                   </div>
                 </div>
@@ -1216,7 +1245,11 @@ const BrightBox = () => {
                     <span>Add Story</span>
                   </button>
                 </div>
-                {getStoriesByCategory(expandedCategory._id).length === 0 ? (
+                {categoryStoriesLoading ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 text-sm">Loading stories…</p>
+                  </div>
+                ) : categoryStories.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-400 text-sm mb-4">No stories in this category yet</p>
                     <button
@@ -1233,7 +1266,7 @@ const BrightBox = () => {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {getStoriesByCategory(expandedCategory._id).map((story) => (
+                    {categoryStories.map((story) => (
                       <div key={story._id} className="flex items-center justify-between bg-gray-800/50 rounded-lg border border-gray-700/50 p-3 hover:bg-gray-800/70 transition duration-200">
                         <div className="flex items-center space-x-3 flex-1 min-w-0">
                           {story.image ? (
