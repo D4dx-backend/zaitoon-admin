@@ -22,6 +22,7 @@ import Notifications from './pages/notifications'
 import Activity from './pages/activity'
 import StoryPuzzle from './pages/storyPuzzle'
 import Coloring from './pages/coloring'
+import Gallery from './pages/gallery'
 import Analytics from './pages/analytics'
 import HomeBanner from './pages/homeBanner'
 import Notices from './pages/notices'
@@ -250,6 +251,14 @@ function App() {
           element={
             isAuthenticated ? 
             <Coloring /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/gallery" 
+          element={
+            isAuthenticated ? 
+            <Gallery /> : 
             <Navigate to="/login" replace />
           } 
         />

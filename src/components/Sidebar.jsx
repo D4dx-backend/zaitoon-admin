@@ -54,6 +54,7 @@ const menuGroups = [
       { label: 'Puzzles', path: '/puzzles', icon: PuzzlePieceIcon },
       { label: 'Story Puzzle', path: '/story-puzzle', icon: BookOpenIcon },
       { label: 'Coloring', path: '/coloring', icon: PaintBrushIcon },
+      { label: 'Gallery', path: '/gallery', icon: PhotoIcon },
     ]
   },
   {
