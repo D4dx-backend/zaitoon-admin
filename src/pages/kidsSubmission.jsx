@@ -31,6 +31,7 @@ const KidsSubmission = () => {
     contentType: 'story',
     title: '',
     storyOrPoem: '',
+    letter: '',
     drawingDescription: '',
     kidName: '',
     kidAge: '',
@@ -339,6 +340,7 @@ const KidsSubmission = () => {
       contentType: 'story',
       title: '',
       storyOrPoem: '',
+      letter: '',
       drawingDescription: '',
       kidName: '',
       kidAge: '',
@@ -368,6 +370,7 @@ const KidsSubmission = () => {
       contentType: submission.contentType || 'story',
       title: submission.title || '',
       storyOrPoem: submission.storyOrPoem || '',
+      letter: submission.letter || '',
       drawingDescription: submission.drawingDescription || '',
       kidName: submission.kidName || '',
       kidAge: submission.kidAge || '',
@@ -402,6 +405,7 @@ const KidsSubmission = () => {
       case 'story': return <FiBook className="w-5 h-5" />
       case 'poem': return <FiFileText className="w-5 h-5" />
       case 'drawing': return <FiImage className="w-5 h-5" />
+      case 'letter': return <FiFileText className="w-5 h-5" />
       case 'other': return <FiStar className="w-5 h-5" />
       default: return <FiBook className="w-5 h-5" />
     }
@@ -659,6 +663,7 @@ const KidsSubmission = () => {
                   <option value="story">Story</option>
                   <option value="poem">Poem</option>
                   <option value="drawing">Drawing</option>
+                  <option value="letter">Letter</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -677,7 +682,7 @@ const KidsSubmission = () => {
               </div>
 
               {/* Story or Poem */}
-              {submissionForm.contentType !== 'drawing' && submissionForm.contentType !== 'other' && (
+              {(submissionForm.contentType === 'story' || submissionForm.contentType === 'poem') && (
                 <div>
                   <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>
                     {submissionForm.contentType === 'story' ? 'Story' : 'Poem'} *
@@ -689,6 +694,21 @@ const KidsSubmission = () => {
                     rows={6}
                     className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400 resize-none"
                     placeholder={`Enter ${submissionForm.contentType} content`}
+                  />
+                </div>
+              )}
+
+              {/* Letter */}
+              {submissionForm.contentType === 'letter' && (
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Letter *</label>
+                  <textarea
+                    value={submissionForm.letter}
+                    onChange={(e) => setSubmissionForm({ ...submissionForm, letter: e.target.value })}
+                    required
+                    rows={8}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400 resize-none"
+                    placeholder="Enter letter content"
                   />
                 </div>
               )}
@@ -1000,6 +1020,16 @@ const KidsSubmission = () => {
                   </h4>
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <p className="text-gray-300 whitespace-pre-wrap">{selectedSubmission.storyOrPoem}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Letter */}
+              {selectedSubmission.letter && (
+                <div>
+                  <h4 className="text-white font-semibold mb-3">Letter</h4>
+                  <div className="bg-gray-800/50 rounded-xl p-4">
+                    <p className="text-gray-300 whitespace-pre-wrap">{selectedSubmission.letter}</p>
                   </div>
                 </div>
               )}

@@ -250,7 +250,7 @@ function QuizManagement() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {configs.map(cfg => {
                 const now = new Date()
                 const isLive = cfg.isEnable && new Date(cfg.startDate) <= now && new Date(cfg.endDate) >= now
@@ -311,7 +311,7 @@ function QuizManagement() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 mt-auto pt-2 border-t border-gray-700">
+                    <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t border-gray-700">
                       <button
                         onClick={() => navigate(`/questions?configId=${cfg._id}&configName=${encodeURIComponent(cfg.name)}`)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors text-sm"
