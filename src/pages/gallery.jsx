@@ -11,7 +11,10 @@ import {
   FiEyeOff,
   FiChevronLeft,
   FiChevronRight,
-  FiChevronDown
+  FiChevronDown,
+  FiUpload,
+  FiCheckCircle,
+  FiAlertCircle
 } from 'react-icons/fi'
 import { HiCalendar } from 'react-icons/hi'
 
@@ -25,6 +28,8 @@ function Gallery() {
   const [editingImage, setEditingImage] = useState(null)
   const [filterCategory, setFilterCategory] = useState('')
   const [imagePreview, setImagePreview] = useState(null)
+  const [multiFiles, setMultiFiles] = useState([]) // [{ file, preview, status: 'pending'|'uploading'|'done'|'error' }]
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [formCategoryOpen, setFormCategoryOpen] = useState(false)
   const dropdownRef = React.useRef(null)
@@ -94,12 +99,63 @@ function Gallery() {
     })
     setEditingImage(null)
     setImagePreview(null)
+    setMultiFiles([])
+    setUploadProgress({ done: 0, total: 0 })
     setShowForm(false)
   }
 
-  // ─── Create ────────────────────────────────────────────
+  // ─── Upload single file helper ─────────────────────────
+  const uploadSingle = async (file, meta) => {
+    const fd = new FormData()
+    fd.append('title', meta.title)
+    fd.append('titleMl', meta.titleMl)
+    fd.append('description', meta.description)
+    fd.append('category', meta.category)
+    fd.append('sortOrder', meta.sortOrder)
+    fd.append('image', file)
+    const response = await fetch(`${API_BASE}/gallery`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` },
+      body: fd
+    })
+    return response.json()
+  }
+
+  // ─── Create (single) ───────────────────────────────────
   const createImage = async (e) => {
     e.preventDefault()
+    // Multi-file mode
+    if (multiFiles.length > 0) {
+      setLoading(true)
+      const total = multiFiles.length
+      setUploadProgress({ done: 0, total })
+      let done = 0
+      const updated = [...multiFiles]
+      for (let i = 0; i < updated.length; i++) {
+        updated[i] = { ...updated[i], status: 'uploading' }
+        setMultiFiles([...updated])
+        try {
+          const res = await uploadSingle(updated[i].file, formData)
+          updated[i] = { ...updated[i], status: res.success ? 'done' : 'error' }
+        } catch (_) {
+          updated[i] = { ...updated[i], status: 'error' }
+        }
+        done++
+        setUploadProgress({ done, total })
+        setMultiFiles([...updated])
+      }
+      setLoading(false)
+      const failed = updated.filter(f => f.status === 'error').length
+      if (failed === 0) {
+        showModal('success', `${total} image${total > 1 ? 's' : ''} uploaded successfully!`)
+        resetForm()
+        fetchImages(1)
+      } else {
+        showModal('error', `${done - failed} uploaded, ${failed} failed. Remove failed items and retry.`)
+      }
+      return
+    }
+    // Single URL mode
     if (!formData.imageFile && !formData.imageUrl) {
       showModal('error', 'Please upload an image or provide a URL.')
       return
@@ -112,18 +168,14 @@ function Gallery() {
       fd.append('description', formData.description)
       fd.append('category', formData.category)
       fd.append('sortOrder', formData.sortOrder)
-
       if (formData.imageFile) {
         fd.append('image', formData.imageFile)
       } else if (formData.imageUrl) {
         fd.append('imageUrl', formData.imageUrl)
       }
-
       const response = await fetch(`${API_BASE}/gallery`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` },
         body: fd
       })
       const data = await response.json()
@@ -242,14 +294,43 @@ function Gallery() {
   }
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    setFormData({ ...formData, imageFile: file })
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      setImagePreview(ev.target.result)
+    let files = Array.from(e.target.files)
+    if (!files.length) return
+    if (files.length > 20) {
+      files = files.slice(0, 20)
+      showModal('error', 'Maximum 20 images can be selected at once. Only the first 20 have been added.')
     }
-    reader.readAsDataURL(file)
+    if (files.length === 1) {
+      // Single file → single mode
+      setMultiFiles([])
+      setFormData({ ...formData, imageFile: files[0] })
+      const reader = new FileReader()
+      reader.onload = (ev) => setImagePreview(ev.target.result)
+      reader.readAsDataURL(files[0])
+    } else {
+      // Multiple files → multi mode
+      setFormData({ ...formData, imageFile: null })
+      setImagePreview(null)
+      const items = files.map(file => ({ file, preview: null, status: 'pending' }))
+      setMultiFiles(items)
+      // Generate previews
+      items.forEach((item, idx) => {
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          setMultiFiles(prev => {
+            const next = [...prev]
+            if (next[idx]) next[idx] = { ...next[idx], preview: ev.target.result }
+            return next
+          })
+        }
+        reader.readAsDataURL(item.file)
+      })
+    }
+    e.target.value = ''
+  }
+
+  const removeMultiFile = (idx) => {
+    setMultiFiles(prev => prev.filter((_, i) => i !== idx))
   }
 
   // ─── Pagination ────────────────────────────────────────
@@ -648,15 +729,105 @@ function Gallery() {
                 <div>
                   <label className="block text-white text-sm font-semibold mb-2" style={{ fontFamily: 'Archivo Black' }}>
                     Image *
+                    {!editingImage && <span className="ml-2 text-xs text-gray-400 font-normal">(select multiple for bulk upload)</span>}
                   </label>
-                  <div className="space-y-2">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange(e)}
-                      className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 file:cursor-pointer"
-                    />
-                    {!formData.imageFile && (
+                  <div className="space-y-3">
+                    {/* Drop zone / file picker */}
+                    <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-600 rounded-2xl cursor-pointer bg-gray-800/30 hover:border-purple-500/60 hover:bg-purple-500/5 transition-all duration-200 group">
+                      <FiUpload className="w-6 h-6 text-gray-500 group-hover:text-purple-400 transition mb-1" />
+                      <span className="text-gray-400 text-sm group-hover:text-gray-300 transition">
+                        {multiFiles.length > 0
+                          ? `${multiFiles.length} file${multiFiles.length > 1 ? 's' : ''} selected — click to change`
+                          : 'Click to choose file(s)'}
+                      </span>
+                      <span className="text-gray-600 text-xs mt-0.5">Hold Ctrl / Cmd to select multiple (max 20)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple={!editingImage}
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {/* Multi-file preview grid */}
+                    {multiFiles.length > 1 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {multiFiles.map((item, idx) => (
+                          <div key={idx} className="relative group/item rounded-xl overflow-hidden border border-gray-700 aspect-square bg-gray-800">
+                            {item.preview
+                              ? <img src={item.preview} alt="" className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center"><FiImage className="w-6 h-6 text-gray-500" /></div>
+                            }
+                            {/* Status badge */}
+                            {item.status === 'done' && (
+                              <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                                <FiCheckCircle className="w-7 h-7 text-green-400" />
+                              </div>
+                            )}
+                            {item.status === 'error' && (
+                              <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
+                                <FiAlertCircle className="w-7 h-7 text-red-400" />
+                              </div>
+                            )}
+                            {item.status === 'uploading' && (
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              </div>
+                            )}
+                            {/* Remove button (only pending) */}
+                            {item.status === 'pending' && (
+                              <button
+                                type="button"
+                                onClick={() => removeMultiFile(idx)}
+                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition"
+                              >
+                                <FiX className="w-3 h-3" />
+                              </button>
+                            )}
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate">
+                              {item.file.name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Upload progress bar */}
+                    {uploadProgress.total > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-400 mb-1">
+                          <span>Uploading...</span>
+                          <span>{uploadProgress.done} / {uploadProgress.total}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${(uploadProgress.done / uploadProgress.total) * 100}%`,
+                              background: 'linear-gradient(90deg, #AC28DC, #7E1EB7)'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Single file preview */}
+                    {multiFiles.length === 0 && imagePreview && (
+                      <div className="relative">
+                        <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover rounded-xl border border-gray-600" />
+                        <button
+                          type="button"
+                          onClick={() => { setImagePreview(null); setFormData({ ...formData, imageFile: null }) }}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* URL input — only for single/edit mode */}
+                    {multiFiles.length === 0 && !formData.imageFile && (
                       <input
                         type="text"
                         value={formData.imageUrl}
@@ -664,9 +835,6 @@ function Gallery() {
                         placeholder="Or paste image URL..."
                         className="w-full px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-500"
                       />
-                    )}
-                    {imagePreview && (
-                      <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover rounded-xl border border-gray-600" />
                     )}
                   </div>
                 </div>
@@ -697,7 +865,14 @@ function Gallery() {
                     fontFamily: 'Fredoka One'
                   }}
                 >
-                  {loading ? 'Saving...' : (editingImage ? 'Update Image' : 'Add Image')}
+                  {loading
+                    ? (multiFiles.length > 1 ? `Uploading ${uploadProgress.done}/${uploadProgress.total}...` : 'Saving...')
+                    : editingImage
+                      ? 'Update Image'
+                      : multiFiles.length > 1
+                        ? `Upload ${multiFiles.length} Images`
+                        : 'Add Image'
+                  }
                 </button>
               </form>
             </div>
@@ -705,14 +880,13 @@ function Gallery() {
         )}
 
         {/* Success/Error Modal */}
-        {modal.isOpen && (
-          <SuccessModal
-            type={modal.type}
-            message={modal.message}
-            onClose={closeModal}
-            onConfirm={modal.onConfirm}
-          />
-        )}
+        <SuccessModal
+          isOpen={modal.isOpen}
+          type={modal.type}
+          message={modal.message}
+          onClose={closeModal}
+          onConfirm={modal.onConfirm}
+        />
       </div>
     </div>
   )
