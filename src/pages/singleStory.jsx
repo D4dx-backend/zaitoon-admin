@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar'
 import StatusModal from '../components/SuccessModal'
 import SchedulePicker from '../components/SchedulePicker'
 import CustomDropdown from '../components/CustomDropdown'
+import HighlightDurationPicker from '../components/HighlightDurationPicker'
 import { FiPlus, FiEdit3, FiTrash2, FiX } from 'react-icons/fi'
 import { HiClock, HiCalendar } from 'react-icons/hi'
 import logo from '../assets/logo.png'
@@ -69,7 +70,8 @@ function SingleStoryManagement() {
     description: '',
     tag: '',
     priority: '1',
-    highlight: 'Disable'
+    highlight: 'Disable',
+    highlightExpiresAt: ''
   })
   const [files, setFiles] = useState({
     coverImage: null,
@@ -86,6 +88,10 @@ function SingleStoryManagement() {
   // Schedule state
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
+
+  // Highlight duration popup state (for star button)
+  const [highlightPopup, setHighlightPopup] = useState({ open: false, story: null, index: null })
+  const [pendingHighlightExpiry, setPendingHighlightExpiry] = useState('')
 
   // Download PDF: open a tab immediately to avoid popup blocking, then load URL
   const handleDownloadPdf = async (storyId, lang = 'en') => {
@@ -434,7 +440,8 @@ function SingleStoryManagement() {
       description: story.description || '',
       tag: story.tag || '',
       priority: typeof story.priority === 'number' && story.priority >= 1 ? String(story.priority) : '1',
-      highlight: story.highlight || 'Disable'
+      highlight: story.highlight || 'Disable',
+      highlightExpiresAt: story.highlightExpiresAt || ''
     })
     setFiles({
       coverImage: null,
@@ -458,7 +465,8 @@ function SingleStoryManagement() {
       description: '',
       tag: '',
       priority: '1',
-      highlight: 'Disable'
+      highlight: 'Disable',
+      highlightExpiresAt: ''
     })
     setFiles({
       coverImage: null,
@@ -521,16 +529,28 @@ function SingleStoryManagement() {
     setDragOverIndex(null)
   }
 
-  const toggleHighlight = async (story, index) => {
-    const newHighlight = story.highlight === 'Enable' ? 'Disable' : 'Enable'
+  const toggleHighlight = (story, index) => {
+    if (story.highlight === 'Enable') {
+      // Disabling — no popup needed, just do it
+      applyHighlight(story, index, 'Disable', '')
+    } else {
+      // Enabling — open duration picker popup
+      setPendingHighlightExpiry('')
+      setHighlightPopup({ open: true, story, index })
+    }
+  }
+
+  const applyHighlight = async (story, index, newHighlight, expiresAt) => {
     // Optimistic UI update
     setOrderedStories(prev =>
-      prev.map((s, i) => i === index ? { ...s, highlight: newHighlight } : s)
+      prev.map((s, i) => i === index ? { ...s, highlight: newHighlight, highlightExpiresAt: expiresAt || null } : s)
     )
     try {
       const token = localStorage.getItem('adminToken')
       const fd = new FormData()
       fd.append('highlight', newHighlight)
+      if (expiresAt) fd.append('highlightExpiresAt', expiresAt)
+      else fd.append('highlightExpiresAt', '')
       await axios.put(`${API_BASE_URL}/single-stories/${story._id}`, fd, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -765,10 +785,16 @@ function SingleStoryManagement() {
                     { value: 'Disable', label: 'Disable' }
                   ]}
                   value={formData.highlight}
-                  onChange={(value) => setFormData(prev => ({ ...prev, highlight: value }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, highlight: value, highlightExpiresAt: value === 'Disable' ? '' : prev.highlightExpiresAt }))}
                   placeholder="Select highlight status..."
                   className="w-full"
                 />
+                {formData.highlight === 'Enable' && (
+                  <HighlightDurationPicker
+                    value={formData.highlightExpiresAt}
+                    onChange={(val) => setFormData(prev => ({ ...prev, highlightExpiresAt: val }))}
+                  />
+                )}
               </div>
 
 
@@ -1367,6 +1393,52 @@ function SingleStoryManagement() {
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
       />
+
+      {/* Highlight Duration Popup — shown when star button is clicked to enable highlight */}
+      {highlightPopup.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold text-base" style={{ fontFamily: 'Archivo Black' }}>
+                Set Highlight Duration
+              </h3>
+              <button
+                type="button"
+                onClick={() => setHighlightPopup({ open: false, story: null, index: null })}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-gray-400 text-sm mb-4">
+              How long should <span className="text-white font-medium">"{highlightPopup.story?.title}"</span> stay highlighted?
+            </p>
+            <HighlightDurationPicker
+              value={pendingHighlightExpiry}
+              onChange={setPendingHighlightExpiry}
+            />
+            <div className="flex gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setHighlightPopup({ open: false, story: null, index: null })}
+                className="flex-1 px-4 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm font-medium hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  applyHighlight(highlightPopup.story, highlightPopup.index, 'Enable', pendingHighlightExpiry)
+                  setHighlightPopup({ open: false, story: null, index: null })
+                }}
+                className="flex-1 px-4 py-2 rounded-xl bg-yellow-500 text-black text-sm font-semibold hover:bg-yellow-400 transition-colors"
+              >
+                ★ Highlight
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
