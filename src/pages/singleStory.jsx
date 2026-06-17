@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Sidebar from '../components/Sidebar'
 import StatusModal from '../components/SuccessModal'
+import SchedulePicker from '../components/SchedulePicker'
 import { FiPlus, FiEdit3, FiTrash2, FiX } from 'react-icons/fi'
 import { HiClock, HiCalendar } from 'react-icons/hi'
 import logo from '../assets/logo.png'
@@ -74,6 +75,10 @@ function SingleStoryManagement() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   const STORIES_PER_PAGE = 18
+
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
 
   // Download PDF: open a tab immediately to avoid popup blocking, then load URL
   const handleDownloadPdf = async (storyId, lang = 'en') => {
@@ -199,7 +204,67 @@ function SingleStoryManagement() {
     try {
       setLoading(true)
       setError('')
-      
+
+      // --- Scheduled upload flow ---
+      if (scheduleEnabled) {
+        if (!scheduledAt) {
+          setStatusModalType('error')
+          setStatusMessage('Please select a date and time to schedule this upload.')
+          setShowStatusModal(true)
+          setLoading(false)
+          return
+        }
+        setStatusModalType('loading')
+        setStatusMessage('Uploading files and scheduling...')
+        setShowStatusModal(true)
+
+        // Upload each file and collect URLs
+        const fileUrls = {}
+        for (const key of Object.keys(files)) {
+          if (files[key]) {
+            const fd = new FormData()
+            fd.append('file', files[key])
+            const upRes = await fetch(`${API_BASE_URL}/admin/upload-file`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+              body: fd
+            })
+            const upData = await upRes.json()
+            if (!upData.success) throw new Error(`Failed to upload ${key}`)
+            fileUrls[key] = upData.url
+          }
+        }
+
+        const schedRes = await fetch(`${API_BASE_URL}/schedule`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('adminToken')}`
+          },
+          body: JSON.stringify({
+            contentType: 'single-story',
+            title: formData.title || 'Single Story',
+            thumbnailUrl: fileUrls.coverImage || '',
+            contentData: { ...formData, ...fileUrls },
+            publishAt: scheduledAt
+          })
+        })
+        const schedData = await schedRes.json()
+        if (schedData.success) {
+          setStatusModalType('success')
+          setStatusMessage(`Story scheduled for ${new Date(scheduledAt).toLocaleString()}`)
+          setShowForm(false)
+          resetForm()
+          setScheduleEnabled(false)
+          setScheduledAt('')
+        } else {
+          setStatusModalType('error')
+          setStatusMessage(schedData.message || 'Failed to schedule story')
+        }
+        return
+      }
+
+      // --- Normal immediate upload flow ---
       // Show loading modal
       setStatusModalType('loading')
       setStatusMessage('Creating your story...')
@@ -392,6 +457,8 @@ function SingleStoryManagement() {
       enBanner: null,
       music: null
     })
+    setScheduleEnabled(false)
+    setScheduledAt('')
   }
 
   // Close form
@@ -701,6 +768,16 @@ function SingleStoryManagement() {
 
               </div>
 
+              {/* Schedule Upload — only for new stories */}
+              {!editingStory && (
+                <SchedulePicker
+                  enabled={scheduleEnabled}
+                  onToggle={setScheduleEnabled}
+                  scheduledAt={scheduledAt}
+                  onDateChange={setScheduledAt}
+                />
+              )}
+
               {/* Submit Buttons */}
               <div className="flex justify-end space-x-4 pt-8">
                 <button
@@ -740,7 +817,7 @@ function SingleStoryManagement() {
                   }}
                 >
                   <FiPlus className="w-3 h-3" />
-                  <span>{loading ? 'Saving...' : (editingStory ? 'Update' : 'Create')}</span>
+                  <span>{loading ? 'Saving...' : (editingStory ? 'Update' : (scheduleEnabled ? 'Schedule' : 'Create'))}</span>
                 </button>
               </div>
             </form>

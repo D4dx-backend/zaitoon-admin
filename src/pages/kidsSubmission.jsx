@@ -3,6 +3,8 @@ import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiUpload, FiImage, FiUser, FiBook
 import SuccessModal from '../components/SuccessModal'
 import Sidebar from '../components/Sidebar'
 import CustomDropdown from '../components/CustomDropdown'
+import SchedulePicker from '../components/SchedulePicker'
+import HighlightDurationPicker from '../components/HighlightDurationPicker'
 import gradient from '../assets/gradiantRight.png'
 
 const KidsSubmission = () => {
@@ -36,7 +38,8 @@ const KidsSubmission = () => {
     moreTitle: '',
     moreDescription: '',
     status: 'Pending',
-    highlight: 'Disable'
+    highlight: 'Disable',
+    highlightExpiresAt: ''
   })
 
   // File upload states
@@ -48,7 +51,11 @@ const KidsSubmission = () => {
   })
 
   // API Base URL
-  const API_BASE = import.meta.env.VITE_API_BASE_URL 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL
+
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('') 
 
   // Fetch submissions
   const fetchSubmissions = async (page = currentPage) => {
@@ -84,8 +91,50 @@ const KidsSubmission = () => {
   const createSubmission = async (e) => {
     e.preventDefault()
     setLoading(true)
-    
+
     try {
+      // --- Scheduled upload flow ---
+      if (scheduleEnabled) {
+        if (!scheduledAt) {
+          showModal('error', 'Please select a date and time to schedule this upload.')
+          setLoading(false)
+          return
+        }
+        const fileKeys = ['coverImage', 'drawing', 'kidPhoto']
+        const fileUrls = {}
+        for (const key of fileKeys) {
+          if (fileInputs[key]?.files?.[0]) {
+            const fd = new FormData()
+            fd.append('file', fileInputs[key].files[0])
+            const upRes = await fetch(`${API_BASE}/admin/upload-file`, { method: 'POST', body: fd })
+            const upData = await upRes.json()
+            if (!upData.success) throw new Error(`Failed to upload ${key}`)
+            fileUrls[key] = upData.url
+          }
+        }
+        const schedRes = await fetch(`${API_BASE}/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contentType: 'kids-submission',
+            title: submissionForm.title || 'Kids Submission',
+            thumbnailUrl: fileUrls.coverImage || '',
+            contentData: { ...submissionForm, ...fileUrls },
+            publishAt: scheduledAt
+          })
+        })
+        const schedData = await schedRes.json()
+        if (schedData.success) {
+          showModal('success', `Submission scheduled for ${new Date(scheduledAt).toLocaleString()}`)
+          resetSubmissionForm()
+          setShowForm(false)
+        } else {
+          showModal('error', schedData.message || 'Failed to schedule submission')
+        }
+        return
+      }
+
+      // --- Normal immediate upload flow ---
       const formData = new FormData()
       
       // Add all form fields
@@ -285,7 +334,8 @@ const KidsSubmission = () => {
       moreTitle: '',
       moreDescription: '',
       status: 'Pending',
-      highlight: 'Disable'
+      highlight: 'Disable',
+      highlightExpiresAt: ''
     })
     setEditingSubmission(null)
     setShowForm(false)
@@ -295,6 +345,8 @@ const KidsSubmission = () => {
       drawing: '',
       kidPhoto: ''
     })
+    setScheduleEnabled(false)
+    setScheduledAt('')
   }
 
   // Edit handlers
@@ -313,7 +365,8 @@ const KidsSubmission = () => {
       moreTitle: submission.moreTitle || '',
       moreDescription: submission.moreDescription || '',
       status: submission.status || 'Pending',
-      highlight: submission.highlight || 'Disable'
+      highlight: submission.highlight || 'Disable',
+      highlightExpiresAt: submission.highlightExpiresAt || ''
     })
     setSelectedFileNames({
       coverImage: submission.coverImage ? submission.coverImage.split('/').pop() : '',
@@ -800,14 +853,30 @@ const KidsSubmission = () => {
                   <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Highlight</label>
                   <select
                     value={submissionForm.highlight}
-                    onChange={(e) => setSubmissionForm({ ...submissionForm, highlight: e.target.value })}
+                    onChange={(e) => setSubmissionForm({ ...submissionForm, highlight: e.target.value, highlightExpiresAt: e.target.value === 'Disable' ? '' : submissionForm.highlightExpiresAt })}
                     className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
                   >
                     <option value="Disable">Disable</option>
                     <option value="Enable">Enable</option>
                   </select>
+                  {submissionForm.highlight === 'Enable' && (
+                    <HighlightDurationPicker
+                      value={submissionForm.highlightExpiresAt}
+                      onChange={(val) => setSubmissionForm({ ...submissionForm, highlightExpiresAt: val })}
+                    />
+                  )}
                 </div>
               </div>
+
+              {/* Schedule Upload — only for new submissions */}
+              {!editingSubmission && (
+                <SchedulePicker
+                  enabled={scheduleEnabled}
+                  onToggle={setScheduleEnabled}
+                  scheduledAt={scheduledAt}
+                  onDateChange={setScheduledAt}
+                />
+              )}
 
               {/* Submit Buttons */}
               <div className="flex space-x-4 pt-6">
@@ -828,7 +897,7 @@ const KidsSubmission = () => {
                   ) : (
                     <>
                       <FiPlus className="w-5 h-5" />
-                      <span>{editingSubmission ? 'Update' : 'Create'}</span>
+                      <span>{editingSubmission ? 'Update' : (scheduleEnabled ? 'Schedule' : 'Create')}</span>
                     </>
                   )}
                 </button>

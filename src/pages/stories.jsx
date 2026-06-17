@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import SuccessModal from '../components/SuccessModal'
 import CustomDropdown from '../components/CustomDropdown'
+import SchedulePicker from '../components/SchedulePicker'
+import HighlightDurationPicker from '../components/HighlightDurationPicker'
 import { 
   FiPlus, 
   FiX,
@@ -76,12 +78,17 @@ function Stories() {
     urBanner: '',
     hinBanner: '',
     highlight: 'Disable',
+    highlightExpiresAt: '',
     music: ''
   })
 
   // File upload states
   const [uploadingFiles, setUploadingFiles] = useState({})
   const [fileInputs, setFileInputs] = useState({})
+
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
   const [files, setFiles] = useState({
     coverImage: null,
     storyFile: null,
@@ -230,8 +237,58 @@ function Stories() {
   const createStory = async (e) => {
     e.preventDefault()
     setLoading(true)
-    
+
     try {
+      // --- Scheduled upload flow ---
+      if (scheduleEnabled) {
+        if (!scheduledAt) {
+          showModal('error', 'Please select a date and time to schedule this upload.')
+          setLoading(false)
+          return
+        }
+        // Upload coverImage first to get URL
+        let coverImageUrl = storyForm.coverImage || ''
+        if (fileInputs.coverImage && fileInputs.coverImage.files[0]) {
+          const fd = new FormData()
+          fd.append('file', fileInputs.coverImage.files[0])
+          const upRes = await fetch(`${API_BASE}/admin/upload-file`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+            body: fd
+          })
+          const upData = await upRes.json()
+          if (!upData.success) throw new Error('Failed to upload cover image')
+          coverImageUrl = upData.url
+        }
+        const payload = { ...storyForm, coverImage: coverImageUrl }
+        const schedRes = await fetch(`${API_BASE}/schedule`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('adminToken')}`
+          },
+          body: JSON.stringify({
+            contentType: 'story',
+            title: storyForm.title || 'Story',
+            thumbnailUrl: coverImageUrl,
+            contentData: payload,
+            publishAt: scheduledAt
+          })
+        })
+        const schedData = await schedRes.json()
+        if (schedData.success) {
+          showModal('success', `Story scheduled for ${new Date(scheduledAt).toLocaleString()}`)
+          resetStoryForm()
+          setShowStoryForm(false)
+          setScheduleEnabled(false)
+          setScheduledAt('')
+        } else {
+          showModal('error', schedData.message || 'Failed to schedule story')
+        }
+        return
+      }
+
+      // --- Normal immediate upload flow ---
       const formData = new FormData()
       Object.keys(storyForm).forEach(key => {
         if (storyForm[key] !== '') {
@@ -453,6 +510,8 @@ function Stories() {
     setEditingStory(null)
     setShowStoryForm(false)
     setFileInputs(prev => ({ ...prev, coverImage: null }))
+    setScheduleEnabled(false)
+    setScheduledAt('')
   }
 
   const resetSeasonForm = () => {
@@ -483,6 +542,7 @@ function Stories() {
       urBanner: '',
       hinBanner: '',
       highlight: 'Disable',
+      highlightExpiresAt: '',
       music: ''
     })
     setEditingEpisode(null)
@@ -622,7 +682,8 @@ function Stories() {
       hinTitle: episode.hinTitle || '',
       status: episode.status || 'Disable',
       readTime: episode.readTime || '',
-      highlight: episode.highlight || 'Disable'
+      highlight: episode.highlight || 'Disable',
+      highlightExpiresAt: episode.highlightExpiresAt || ''
     })
     setFiles({
       coverImage: null,
@@ -707,6 +768,12 @@ function Stories() {
       formData.append('status', episodeForm.status)
       formData.append('readTime', episodeForm.readTime)
       formData.append('highlight', episodeForm.highlight)
+      if (episodeForm.highlightExpiresAt) {
+        formData.append('highlightExpiresAt', episodeForm.highlightExpiresAt)
+      } else {
+        // Pass empty string so the route knows to clear it if highlight is Disable
+        formData.append('highlightExpiresAt', '')
+      }
 
       // Handle file uploads from fileInputs
       const fileFields = [
@@ -1573,6 +1640,16 @@ function Stories() {
                   />
                 </div>
 
+                {/* Schedule Upload — only for new stories */}
+                {!editingStory && (
+                  <SchedulePicker
+                    enabled={scheduleEnabled}
+                    onToggle={setScheduleEnabled}
+                    scheduledAt={scheduledAt}
+                    onDateChange={setScheduledAt}
+                  />
+                )}
+
                 {/* Submit Buttons */}
                 <div className="flex justify-end space-x-4 pt-8">
                   <button
@@ -1612,7 +1689,7 @@ function Stories() {
                     }}
                   >
                     <FiPlus className="w-3 h-3" />
-                    <span>{loading ? 'Saving...' : (editingStory ? 'Update' : 'Create')}</span>
+                    <span>{loading ? 'Saving...' : (editingStory ? 'Update' : (scheduleEnabled ? 'Schedule' : 'Create'))}</span>
                   </button>
                 </div>
               </form>
@@ -1800,10 +1877,16 @@ function Stories() {
                         { value: 'Disable', label: 'Disable' }
                       ]}
                       value={episodeForm.highlight}
-                      onChange={(value) => setEpisodeForm({ ...episodeForm, highlight: value })}
+                      onChange={(value) => setEpisodeForm({ ...episodeForm, highlight: value, highlightExpiresAt: value === 'Disable' ? '' : episodeForm.highlightExpiresAt })}
                       placeholder="Select highlight..."
                       className="w-full"
                     />
+                    {episodeForm.highlight === 'Enable' && (
+                      <HighlightDurationPicker
+                        value={episodeForm.highlightExpiresAt}
+                        onChange={(val) => setEpisodeForm({ ...episodeForm, highlightExpiresAt: val })}
+                      />
+                    )}
                   </div>
                 </div>
 

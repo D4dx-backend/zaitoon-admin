@@ -3,6 +3,7 @@ import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiUpload, FiImage, FiFile, FiFold
 import SuccessModal from '../components/SuccessModal'
 import CustomDropdown from '../components/CustomDropdown'
 import Sidebar from '../components/Sidebar'
+import SchedulePicker from '../components/SchedulePicker'\nimport HighlightDurationPicker from '../components/HighlightDurationPicker'
 import gradient from '../assets/gradiantRight.png'
 
 const BrightBox = () => {
@@ -50,12 +51,19 @@ const BrightBox = () => {
     urTitle: '',
     hinTitle: '',
     category: '',
-    highlight: 'Disable'
+    highlight: 'Disable',
+    highlightExpiresAt: ''
   })
 
   // File upload states
   const [fileInputs, setFileInputs] = useState({})
   const [selectedFileNames, setSelectedFileNames] = useState({})
+
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
+  const [storyScheduleEnabled, setStoryScheduleEnabled] = useState(false)
+  const [storyScheduledAt, setStoryScheduledAt] = useState('')
 
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL 
@@ -158,8 +166,47 @@ const BrightBox = () => {
   const createBrightBox = async (e) => {
     e.preventDefault()
     setLoading(true)
-    
+
     try {
+      // --- Scheduled upload flow ---
+      if (scheduleEnabled) {
+        if (!scheduledAt) {
+          showModal('error', 'Please select a date and time to schedule this upload.')
+          setLoading(false)
+          return
+        }
+        let imageUrl = ''
+        if (fileInputs.image?.files?.[0]) {
+          const fd = new FormData()
+          fd.append('file', fileInputs.image.files[0])
+          const upRes = await fetch(`${API_BASE}/admin/upload-file`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }, body: fd })
+          const upData = await upRes.json()
+          if (!upData.success) throw new Error('Failed to upload image')
+          imageUrl = upData.url
+        }
+        const schedRes = await fetch(`${API_BASE}/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+          body: JSON.stringify({
+            contentType: 'bright-box',
+            title: brightBoxForm.title || 'Bright Box',
+            thumbnailUrl: imageUrl,
+            contentData: { ...brightBoxForm, image: imageUrl },
+            publishAt: scheduledAt
+          })
+        })
+        const schedData = await schedRes.json()
+        if (schedData.success) {
+          showModal('success', `Bright Box scheduled for ${new Date(scheduledAt).toLocaleString()}`)
+          resetBrightBoxForm()
+          setShowBrightBoxForm(false)
+        } else {
+          showModal('error', schedData.message || 'Failed to schedule')
+        }
+        return
+      }
+
+      // --- Normal immediate upload flow ---
       const formData = new FormData()
       Object.keys(brightBoxForm).forEach(key => {
         if (brightBoxForm[key]) {
@@ -279,8 +326,53 @@ const BrightBox = () => {
   const createBrightBoxStory = async (e) => {
     e.preventDefault()
     setLoading(true)
-    
+
     try {
+      // --- Scheduled upload flow ---
+      if (storyScheduleEnabled) {
+        if (!storyScheduledAt) {
+          showModal('error', 'Please select a date and time to schedule this upload.')
+          setLoading(false)
+          return
+        }
+        // Upload all files first
+        const fileFields = ['storyImage', 'enFile', 'mlFile', 'urFile', 'hinFile', 'adBanner', 'mlBanner', 'urBanner', 'hinBanner']
+        const fileUrls = {}
+        for (const fieldKey of fileFields) {
+          if (fileInputs[fieldKey]?.files?.[0]) {
+            const fd = new FormData()
+            fd.append('file', fileInputs[fieldKey].files[0])
+            const upRes = await fetch(`${API_BASE}/admin/upload-file`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }, body: fd })
+            const upData = await upRes.json()
+            if (!upData.success) throw new Error(`Failed to upload ${fieldKey}`)
+            // Map fieldKey to model field name
+            const modelKey = fieldKey === 'storyImage' ? 'image' : fieldKey
+            fileUrls[modelKey] = upData.url
+          }
+        }
+        const schedRes = await fetch(`${API_BASE}/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+          body: JSON.stringify({
+            contentType: 'bright-box-story',
+            title: brightBoxStoryForm.title || 'Bright Box Story',
+            thumbnailUrl: fileUrls.image || '',
+            contentData: { ...brightBoxStoryForm, ...fileUrls },
+            publishAt: storyScheduledAt
+          })
+        })
+        const schedData = await schedRes.json()
+        if (schedData.success) {
+          showModal('success', `Bright Box Story scheduled for ${new Date(storyScheduledAt).toLocaleString()}`)
+          resetBrightBoxStoryForm()
+          setShowBrightBoxStoryForm(false)
+        } else {
+          showModal('error', schedData.message || 'Failed to schedule story')
+        }
+        return
+      }
+
+      // --- Normal immediate upload flow ---
       const formData = new FormData()
       Object.keys(brightBoxStoryForm).forEach(key => {
         if (brightBoxStoryForm[key]) {
@@ -457,6 +549,8 @@ const BrightBox = () => {
     setShowBrightBoxForm(false)
     setFileInputs(prev => ({ ...prev, image: null }))
     setSelectedFileNames(prev => ({ ...prev, image: '' }))
+    setScheduleEnabled(false)
+    setScheduledAt('')
   }
 
   const resetBrightBoxStoryForm = () => {
@@ -466,12 +560,15 @@ const BrightBox = () => {
       urTitle: '',
       hinTitle: '',
       category: '',
-      highlight: 'Disable'
+      highlight: 'Disable',
+      highlightExpiresAt: ''
     })
     setEditingBrightBoxStory(null)
     setShowBrightBoxStoryForm(false)
     setFileInputs({})
     setSelectedFileNames({})
+    setStoryScheduleEnabled(false)
+    setStoryScheduledAt('')
   }
 
   // Edit handlers
@@ -498,7 +595,8 @@ const BrightBox = () => {
       urTitle: brightBoxStory.urTitle || '',
       hinTitle: brightBoxStory.hinTitle || '',
       category: brightBoxStory.category?._id || '',
-      highlight: brightBoxStory.highlight || 'Disable'
+      highlight: brightBoxStory.highlight || 'Disable',
+      highlightExpiresAt: brightBoxStory.highlightExpiresAt || ''
     })
     setSelectedFileNames({
       storyImage: brightBoxStory.image ? brightBoxStory.image.split('/').pop() : '',
@@ -1735,6 +1833,16 @@ const BrightBox = () => {
                 </div>
               </div>
 
+              {/* Schedule Upload — only for new bright boxes */}
+              {!editingBrightBox && (
+                <SchedulePicker
+                  enabled={scheduleEnabled}
+                  onToggle={setScheduleEnabled}
+                  scheduledAt={scheduledAt}
+                  onDateChange={setScheduledAt}
+                />
+              )}
+
               {/* Submit Buttons */}
               <div className="flex space-x-3 pt-4">
                 <button
@@ -1754,7 +1862,7 @@ const BrightBox = () => {
                   ) : (
                     <>
                       <FiPlus className="w-4 h-4" />
-                      <span>{editingBrightBox ? 'Update' : 'Create'}</span>
+                      <span>{editingBrightBox ? 'Update' : (scheduleEnabled ? 'Schedule' : 'Create')}</span>
                     </>
                   )}
                 </button>
@@ -1854,10 +1962,16 @@ const BrightBox = () => {
                     { value: 'Disable', label: 'Disable' }
                   ]}
                   value={brightBoxStoryForm.highlight}
-                  onChange={(value) => setBrightBoxStoryForm({ ...brightBoxStoryForm, highlight: value })}
+                  onChange={(value) => setBrightBoxStoryForm({ ...brightBoxStoryForm, highlight: value, highlightExpiresAt: value === 'Disable' ? '' : brightBoxStoryForm.highlightExpiresAt })}
                   placeholder="Select highlight status..."
                   className="w-full"
                 />
+                {brightBoxStoryForm.highlight === 'Enable' && (
+                  <HighlightDurationPicker
+                    value={brightBoxStoryForm.highlightExpiresAt}
+                    onChange={(val) => setBrightBoxStoryForm({ ...brightBoxStoryForm, highlightExpiresAt: val })}
+                  />
+                )}
               </div>
 
               {/* File Uploads */}
@@ -2082,6 +2196,16 @@ const BrightBox = () => {
                 </div>
               </div>
 
+              {/* Schedule Upload — only for new bright box stories */}
+              {!editingBrightBoxStory && (
+                <SchedulePicker
+                  enabled={storyScheduleEnabled}
+                  onToggle={setStoryScheduleEnabled}
+                  scheduledAt={storyScheduledAt}
+                  onDateChange={setStoryScheduledAt}
+                />
+              )}
+
               {/* Submit Buttons */}
               <div className="flex space-x-3 pt-4">
                 <button
@@ -2101,7 +2225,7 @@ const BrightBox = () => {
                   ) : (
                     <>
                       <FiPlus className="w-4 h-4" />
-                      <span>{editingBrightBoxStory ? 'Update' : 'Create'}</span>
+                      <span>{editingBrightBoxStory ? 'Update' : (storyScheduleEnabled ? 'Schedule' : 'Create')}</span>
                     </>
                   )}
                 </button>

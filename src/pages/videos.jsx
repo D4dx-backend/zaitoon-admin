@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import SuccessModal from '../components/SuccessModal'
 import CustomDropdown from '../components/CustomDropdown'
+import SchedulePicker from '../components/SchedulePicker'
 import { 
   FiPlus, 
   FiX,
@@ -69,6 +70,10 @@ function Videos() {
 
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL
+
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
   
   // Debug logging
 
@@ -241,8 +246,57 @@ function Videos() {
   const createVideo = async (e) => {
     e.preventDefault()
     setLoading(true)
-    
+
     try {
+      // --- Scheduled upload flow ---
+      if (scheduleEnabled) {
+        if (!scheduledAt) {
+          showModal('error', 'Please select a date and time to schedule this upload.')
+          setLoading(false)
+          return
+        }
+        let thumbnailUrl = videoForm.thumbnail || ''
+        if (fileInputs.thumbnail?.files?.[0]) {
+          const fd = new FormData()
+          fd.append('file', fileInputs.thumbnail.files[0])
+          const upRes = await fetch(`${API_BASE}/admin/upload-file`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+            body: fd
+          })
+          const upData = await upRes.json()
+          if (!upData.success) throw new Error('Failed to upload thumbnail')
+          thumbnailUrl = upData.url
+        }
+        const schedRes = await fetch(`${API_BASE}/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+          body: JSON.stringify({
+            contentType: 'video',
+            title: videoForm.title || 'Video',
+            thumbnailUrl,
+            contentData: {
+              title: videoForm.title,
+              category: videoForm.category,
+              video: videoForm.videoLink,
+              language: videoForm.language,
+              thumbnail: thumbnailUrl
+            },
+            publishAt: scheduledAt
+          })
+        })
+        const schedData = await schedRes.json()
+        if (schedData.success) {
+          showModal('success', `Video scheduled for ${new Date(scheduledAt).toLocaleString()}`)
+          resetVideoForm()
+          setShowVideoForm(false)
+        } else {
+          showModal('error', schedData.message || 'Failed to schedule video')
+        }
+        return
+      }
+
+      // --- Normal immediate upload flow ---
       const formData = new FormData()
       formData.append('title', videoForm.title)
       formData.append('category', videoForm.category)
@@ -467,6 +521,8 @@ function Videos() {
     })
     setEditingVideo(null)
     setShowVideoForm(false)
+    setScheduleEnabled(false)
+    setScheduledAt('')
   }
 
   const resetCategoryForm = () => {
@@ -1605,6 +1661,14 @@ function Videos() {
                 </div>
 
                 {/* Submit Buttons */}
+                {!editingVideo && (
+                  <SchedulePicker
+                    enabled={scheduleEnabled}
+                    onToggle={setScheduleEnabled}
+                    scheduledAt={scheduledAt}
+                    onDateChange={setScheduledAt}
+                  />
+                )}
                 <div className="flex justify-end space-x-4 pt-8">
                   <button
                     type="button"
@@ -1643,7 +1707,7 @@ function Videos() {
                     }}
                   >
                     <FiPlus className="w-3 h-3" />
-                    <span>{loading ? 'Saving...' : (editingVideo ? 'Update' : 'Create')}</span>
+                    <span>{loading ? 'Saving...' : (editingVideo ? 'Update' : (scheduleEnabled ? 'Schedule' : 'Create'))}</span>
                   </button>
                 </div>
               </form>

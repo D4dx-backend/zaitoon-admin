@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { FiPlus, FiTrash2, FiEdit3, FiImage, FiAlertCircle, FiCheckCircle, FiX } from 'react-icons/fi'
 import Sidebar from '../components/Sidebar'
 import SuccessModal from '../components/SuccessModal'
+import SchedulePicker from '../components/SchedulePicker'
 import gradient from '../assets/gradiantRight.png'
 
 function Puzzles() {
@@ -30,6 +31,10 @@ function Puzzles() {
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL
 
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
+
   const showModal = (type, message, onConfirm = null) => {
     setModal({ isOpen: true, type, message, onConfirm })
   }
@@ -54,6 +59,8 @@ function Puzzles() {
     })
     setImagefilePreview('')
     setShowForm(false)
+    setScheduleEnabled(false)
+    setScheduledAt('')
   }
 
   const fetchPuzzles = async (page = 1) => {
@@ -130,8 +137,53 @@ function Puzzles() {
   const createPuzzle = async (event) => {
     event.preventDefault()
     setLoading(true)
-    console.log('[Puzzles] Creating puzzle', formData)
+
     try {
+      // --- Scheduled upload flow ---
+      if (scheduleEnabled) {
+        if (!scheduledAt) {
+          showModal('error', 'Please select a date and time to schedule this upload.')
+          setLoading(false)
+          return
+        }
+        let imagefileUrl = ''
+        if (formData.imagefileFile) {
+          const fd = new FormData()
+          fd.append('file', formData.imagefileFile)
+          const upRes = await fetch(`${API_BASE}/admin/upload-file`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }, body: fd })
+          const upData = await upRes.json()
+          if (!upData.success) throw new Error('Failed to upload puzzle image')
+          imagefileUrl = upData.url
+        }
+        const schedRes = await fetch(`${API_BASE}/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+          body: JSON.stringify({
+            contentType: 'puzzle',
+            title: formData.translations?.en?.title || 'Puzzle',
+            thumbnailUrl: formData.imageUrl || imagefileUrl,
+            contentData: {
+              imageUrl: formData.imageUrl,
+              imagefile: imagefileUrl,
+              difficulty: formData.difficulty,
+              isActive: formData.isActive,
+              translations: formData.translations
+            },
+            publishAt: scheduledAt
+          })
+        })
+        const schedData = await schedRes.json()
+        if (schedData.success) {
+          showModal('success', `Puzzle scheduled for ${new Date(scheduledAt).toLocaleString()}`)
+          resetForm()
+        } else {
+          showModal('error', schedData.message || 'Failed to schedule puzzle')
+        }
+        return
+      }
+
+      // --- Normal immediate upload flow ---
+      console.log('[Puzzles] Creating puzzle', formData)
       const payload = buildPuzzleFormPayload()
       const response = await fetch(`${API_BASE}/puzzles`, {
         method: 'POST',
@@ -681,6 +733,16 @@ function Puzzles() {
                   })}
                 </div>
 
+                {/* Schedule Upload — only for new puzzles */}
+                {!editingPuzzle && (
+                  <SchedulePicker
+                    enabled={scheduleEnabled}
+                    onToggle={setScheduleEnabled}
+                    scheduledAt={scheduledAt}
+                    onDateChange={setScheduledAt}
+                  />
+                )}
+
                 <div className="flex justify-end space-x-3 pt-4 border-t border-white/10">
                   <button
                     type="button"
@@ -719,7 +781,7 @@ function Puzzles() {
                     }}
                   >
                     <FiPlus className="w-3 h-3" />
-                    <span>{loading ? 'Saving...' : editingPuzzle ? 'Update' : 'Create'}</span>
+                    <span>{loading ? 'Saving...' : editingPuzzle ? 'Update' : (scheduleEnabled ? 'Schedule' : 'Create')}</span>
                   </button>
                 </div>
               </form>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import SuccessModal from '../components/SuccessModal'
+import SchedulePicker from '../components/SchedulePicker'
 import { 
   FiPlus, 
   FiX,
@@ -31,6 +32,10 @@ function Banners() {
 
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL
+
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
 
   // Show modal
   const showModal = (type, message, onConfirm = null) => {
@@ -72,14 +77,70 @@ function Banners() {
     setEditingBanner(null)
     setFileInputs({})
     setShowForm(false)
+    setScheduleEnabled(false)
+    setScheduledAt('')
   }
 
   // Create banner
   const createBanner = async (e) => {
     e.preventDefault()
     setLoading(true)
-    
+
     try {
+      // --- Scheduled upload flow ---
+      if (scheduleEnabled) {
+        if (!scheduledAt) {
+          showModal('error', 'Please select a date and time to schedule this upload.')
+          setLoading(false)
+          return
+        }
+        const hasImageFile = fileInputs.image?.files?.[0]
+        const hasPdfFile = fileInputs.pdf?.files?.[0]
+        if (!hasImageFile && !formData.image && !hasPdfFile && !formData.pdf) {
+          showModal('error', 'Either an image or a PDF is required.')
+          setLoading(false)
+          return
+        }
+        let imageUrl = formData.image || ''
+        let pdfUrl = formData.pdf || ''
+        if (hasImageFile) {
+          const fd = new FormData()
+          fd.append('file', fileInputs.image.files[0])
+          const upRes = await fetch(`${API_BASE}/admin/upload-file`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }, body: fd })
+          const upData = await upRes.json()
+          if (!upData.success) throw new Error('Failed to upload image')
+          imageUrl = upData.url
+        }
+        if (hasPdfFile) {
+          const fd = new FormData()
+          fd.append('file', fileInputs.pdf.files[0])
+          const upRes = await fetch(`${API_BASE}/admin/upload-file`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }, body: fd })
+          const upData = await upRes.json()
+          if (!upData.success) throw new Error('Failed to upload PDF')
+          pdfUrl = upData.url
+        }
+        const schedRes = await fetch(`${API_BASE}/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
+          body: JSON.stringify({
+            contentType: 'banner',
+            title: formData.title || 'Banner',
+            thumbnailUrl: imageUrl,
+            contentData: { title: formData.title, image: imageUrl, pdf: pdfUrl },
+            publishAt: scheduledAt
+          })
+        })
+        const schedData = await schedRes.json()
+        if (schedData.success) {
+          showModal('success', `Banner scheduled for ${new Date(scheduledAt).toLocaleString()}`)
+          resetForm()
+        } else {
+          showModal('error', schedData.message || 'Failed to schedule banner')
+        }
+        return
+      }
+
+      // --- Normal immediate upload flow ---
       const formDataToSend = new FormData()
       formDataToSend.append('title', formData.title)
       
@@ -474,6 +535,16 @@ function Banners() {
                   />
                 </div>
 
+                {/* Schedule Upload — only for new banners */}
+                {!editingBanner && (
+                  <SchedulePicker
+                    enabled={scheduleEnabled}
+                    onToggle={setScheduleEnabled}
+                    scheduledAt={scheduledAt}
+                    onDateChange={setScheduledAt}
+                  />
+                )}
+
                 {/* Submit Buttons */}
                 <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 sm:pt-8">
                   <button
@@ -507,7 +578,7 @@ function Banners() {
                     }}
                   >
                     <FiPlus className="w-3 h-3" />
-                    <span>{loading ? (editingBanner ? 'Updating...' : 'Creating...') : (editingBanner ? 'Update' : 'Create')}</span>
+                    <span>{loading ? (editingBanner ? 'Updating...' : 'Creating...') : (editingBanner ? 'Update' : (scheduleEnabled ? 'Schedule' : 'Create'))}</span>
                   </button>
                 </div>
               </form>

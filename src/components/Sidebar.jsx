@@ -22,7 +22,8 @@ import {
   CommandLineIcon,
   Square3Stack3DIcon,
   SparklesIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline'
 import logo from '../assets/logo.png'
 import dxLogo from '../assets/dxLogoWhite.png'
@@ -74,7 +75,8 @@ const menuGroups = [
   },
   {
     items: [
-      { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon }
+      { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon },
+      { label: 'Scheduled Uploads', path: '/scheduled', icon: ClockIcon }
     ]
   }
 ]
