@@ -3,11 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Sidebar from '../components/Sidebar'
 import StatusModal from '../components/SuccessModal'
-<<<<<<< HEAD
 import SchedulePicker from '../components/SchedulePicker'
-=======
 import CustomDropdown from '../components/CustomDropdown'
->>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
 import { FiPlus, FiEdit3, FiTrash2, FiX } from 'react-icons/fi'
 import { HiClock, HiCalendar } from 'react-icons/hi'
 import logo from '../assets/logo.png'
