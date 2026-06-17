@@ -12,6 +12,10 @@ const BrightBox = () => {
   const [brightBoxStories, setBrightBoxStories] = useState([])
   const [loading, setLoading] = useState(false)
   const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null })
+  const [draggingBrightBoxId, setDraggingBrightBoxId] = useState(null)
+  const [pendingBbOrder, setPendingBbOrder] = useState(false)
+  const [draggingBsId, setDraggingBsId] = useState(null)
+  const [pendingBsOrder, setPendingBsOrder] = useState(false)
   
   // Form states
   const [showBrightBoxForm, setShowBrightBoxForm] = useState(false)
@@ -27,6 +31,8 @@ const BrightBox = () => {
   const [showCategoryTable, setShowCategoryTable] = useState(false)
   const [expandedStory, setExpandedStory] = useState(null)
   const [showStoriesTable, setShowStoriesTable] = useState(false)
+  const [categoryStories, setCategoryStories] = useState([])
+  const [categoryStoriesLoading, setCategoryStoriesLoading] = useState(false)
 
   // Pagination states
   const [bbPage, setBbPage] = useState(1)
@@ -67,6 +73,100 @@ const BrightBox = () => {
 
   // API Base URL
   const API_BASE = import.meta.env.VITE_API_BASE_URL 
+
+  // ── Drag-and-drop reorder handlers ──────────────────────────────────────
+  const handleBrightBoxDragStart = (_e, id) => {
+    setDraggingBrightBoxId(id)
+  }
+
+  const handleBrightBoxDragOver = (e, targetId) => {
+    e.preventDefault()
+    if (!draggingBrightBoxId || draggingBrightBoxId === targetId) return
+    setBrightBoxes((prev) => {
+      const fromIndex = prev.findIndex((b) => b._id === draggingBrightBoxId)
+      const toIndex = prev.findIndex((b) => b._id === targetId)
+      if (fromIndex === -1 || toIndex === -1) return prev
+      const updated = [...prev]
+      const [moved] = updated.splice(fromIndex, 1)
+      updated.splice(toIndex, 0, moved)
+      return updated
+    })
+  }
+
+  const handleBrightBoxDrop = async (e) => {
+    e.preventDefault()
+    setDraggingBrightBoxId(null)
+    setPendingBbOrder(true)
+  }
+
+  const handleBrightBoxDragEnd = () => {
+    setDraggingBrightBoxId(null)
+  }
+
+  const saveBrightBoxOrder = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      await fetch(`${API_BASE}/bright-boxes/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ brightBoxIds: brightBoxes.map((b) => b._id) })
+      })
+      setPendingBbOrder(false)
+    } catch (err) {
+      console.error('Failed to save bright box order:', err)
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── BrightBox Stories drag-and-drop reorder ──────────────────────────────
+  const handleBsDragStart = (_e, id) => {
+    setDraggingBsId(id)
+  }
+
+  const handleBsDragOver = (e, targetId) => {
+    e.preventDefault()
+    if (!draggingBsId || draggingBsId === targetId) return
+    setBrightBoxStories((prev) => {
+      const fromIndex = prev.findIndex((s) => s._id === draggingBsId)
+      const toIndex = prev.findIndex((s) => s._id === targetId)
+      if (fromIndex === -1 || toIndex === -1) return prev
+      const updated = [...prev]
+      const [moved] = updated.splice(fromIndex, 1)
+      updated.splice(toIndex, 0, moved)
+      return updated
+    })
+  }
+
+  const handleBsDrop = (e) => {
+    e.preventDefault()
+    setDraggingBsId(null)
+    setPendingBsOrder(true)
+  }
+
+  const handleBsDragEnd = () => {
+    setDraggingBsId(null)
+  }
+
+  const saveBsOrder = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      await fetch(`${API_BASE}/bright-box-stories/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ storyIds: brightBoxStories.map((s) => s._id) })
+      })
+      setPendingBsOrder(false)
+    } catch (err) {
+      console.error('Failed to save story order:', err)
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Fetch bright box categories with pagination
   const fetchBrightBoxes = async (page = bbPage) => {
@@ -152,6 +252,29 @@ const BrightBox = () => {
   useEffect(() => {
     fetchBrightBoxStories(storiesPage)
   }, [storiesPage])
+
+  // Fetch all stories for the selected category when the modal opens
+  useEffect(() => {
+    if (!expandedCategory) {
+      setCategoryStories([])
+      return
+    }
+    const fetchCategoryStories = async () => {
+      setCategoryStoriesLoading(true)
+      try {
+        const response = await fetch(`${API_BASE}/bright-box-stories?category=${expandedCategory._id}&all=true`)
+        const data = await response.json()
+        if (data.success) {
+          setCategoryStories(data.data.brightBoxStories)
+        }
+      } catch (error) {
+        console.error('Error fetching category stories:', error)
+      } finally {
+        setCategoryStoriesLoading(false)
+      }
+    }
+    fetchCategoryStories()
+  }, [expandedCategory])
 
   // Modal functions
   const showModal = (type, message, onConfirm = null) => {
@@ -424,6 +547,7 @@ const BrightBox = () => {
         setShowBrightBoxStoryForm(false)
         setStoriesPage(1)
         fetchBrightBoxStories(1)
+        fetchBrightBoxes(bbPage)
       } else {
         showModal('error', data.message || 'Failed to create bright box story')
       }
@@ -522,9 +646,12 @@ const BrightBox = () => {
         
         if (data.success) {
           showModal('success', 'Bright Box Story deleted successfully!')
+          // Refresh category modal list if open
+          setCategoryStories(prev => prev.filter(s => s._id !== id))
           const newStoriesPage = brightBoxStories.length === 1 && storiesPage > 1 ? storiesPage - 1 : storiesPage
           setStoriesPage(newStoriesPage)
           fetchBrightBoxStories(newStoriesPage)
+          fetchBrightBoxes(bbPage)
         } else {
           showModal('error', data.message || 'Failed to delete bright box story')
         }
@@ -719,7 +846,7 @@ const BrightBox = () => {
                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-4">
                  {/* Category Cards - Limited Display */}
                  {brightBoxes.slice(0, 5).map((brightBox) => {
-                   const storyCount = getStoriesByCategory(brightBox._id).length
+                   const storyCount = brightBox.storyCount ?? 0
                    
                    return (
                      <div 
@@ -858,9 +985,21 @@ const BrightBox = () => {
                 {/* Management Table */}
                 <div className="scroll-indicator">
                   <div className="max-h-[60vh] overflow-y-auto overflow-x-auto scrollbar-hide scroll-smooth">
+                    {pendingBbOrder && (
+                      <div className="flex items-center justify-between px-4 py-2 mb-2 bg-green-500/10 border border-green-500/40 rounded-xl">
+                        <span className="text-green-400 text-sm font-medium">Drag to reorder — save when done</span>
+                        <button
+                          onClick={saveBrightBoxOrder}
+                          className="px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-lg transition"
+                        >
+                          Save Order
+                        </button>
+                      </div>
+                    )}
                     <table className="w-full">
                       <thead className="sticky top-0 bg-transparent backdrop-blur-sm z-10">
                         <tr className="border-b border-gray-700/50">
+                          <th className="text-left py-3 px-4 text-gray-300 font-semibold w-8"></th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Image</th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Title</th>
                           <th className="text-left py-3 px-4 text-gray-300 font-semibold">Stories</th>
@@ -870,10 +1009,32 @@ const BrightBox = () => {
                       </thead>
                       <tbody>
                         {brightBoxes.map((brightBox) => {
-                          const totalStories = getStoriesByCategory(brightBox._id).length
+                          const totalStories = brightBox.storyCount ?? 0
                           
                           return (
-                            <tr key={brightBox._id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition duration-200">
+                            <tr
+                              key={brightBox._id}
+                              draggable
+                              onDragStart={(e) => handleBrightBoxDragStart(e, brightBox._id)}
+                              onDragOver={(e) => handleBrightBoxDragOver(e, brightBox._id)}
+                              onDrop={handleBrightBoxDrop}
+                              onDragEnd={handleBrightBoxDragEnd}
+                                                          className={`border-b transition duration-200 ${
+                                draggingBrightBoxId === brightBox._id
+                                  ? 'opacity-50 bg-purple-500/10 border-purple-500/50'
+                                  : pendingBbOrder
+                                    ? 'border-green-500/40 hover:bg-gray-800/30'
+                                    : 'border-gray-800/50 hover:bg-gray-800/30'
+                              }`}
+                            >
+                              {/* Drag handle */}
+                              <td className="py-4 px-4 w-8">
+                                <div className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300 flex items-center justify-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                    <path d="M10 4h.01M14 4h.01M10 9h.01M14 9h.01M10 14h.01M14 14h.01M10 19h.01M14 19h.01" />
+                                  </svg>
+                                </div>
+                              </td>
                               <td className="py-4 px-4">
                                 {brightBox.image ? (
                                   <img
@@ -1152,7 +1313,7 @@ const BrightBox = () => {
                   <div className="flex items-center space-x-4 text-sm text-gray-400">
                     <div className="flex items-center space-x-1">
                       <FiFile className="w-4 h-4 text-green-400" />
-                      <span>{getStoriesByCategory(expandedCategory._id).length} stories</span>
+                      <span>{categoryStoriesLoading ? '…' : categoryStories.length} stories</span>
                     </div>
                   </div>
                 </div>
@@ -1182,7 +1343,11 @@ const BrightBox = () => {
                     <span>Add Story</span>
                   </button>
                 </div>
-                {getStoriesByCategory(expandedCategory._id).length === 0 ? (
+                {categoryStoriesLoading ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 text-sm">Loading stories…</p>
+                  </div>
+                ) : categoryStories.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-400 text-sm mb-4">No stories in this category yet</p>
                     <button
@@ -1199,7 +1364,7 @@ const BrightBox = () => {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {getStoriesByCategory(expandedCategory._id).map((story) => (
+                    {categoryStories.map((story) => (
                       <div key={story._id} className="flex items-center justify-between bg-gray-800/50 rounded-lg border border-gray-700/50 p-3 hover:bg-gray-800/70 transition duration-200">
                         <div className="flex items-center space-x-3 flex-1 min-w-0">
                           {story.image ? (
@@ -1572,9 +1737,21 @@ const BrightBox = () => {
               {/* Stories Table */}
               {brightBoxStories.length > 0 ? (
                 <div className="overflow-x-auto">
+                  {pendingBsOrder && (
+                    <div className="flex items-center justify-between px-4 py-2 mb-2 bg-green-500/10 border border-green-500/40 rounded-xl">
+                      <span className="text-green-400 text-sm font-medium">Drag to reorder — save when done</span>
+                      <button
+                        onClick={saveBsOrder}
+                        className="px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-lg transition"
+                      >
+                        Save Order
+                      </button>
+                    </div>
+                  )}
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-700/50">
+                        <th className="text-left py-3 px-4 text-gray-400 font-medium w-8"></th>
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Image</th>
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Title</th>
                         <th className="text-left py-3 px-4 text-gray-400 font-medium">Category</th>
@@ -1585,7 +1762,29 @@ const BrightBox = () => {
                     </thead>
                     <tbody>
                       {brightBoxStories.map((story) => (
-                        <tr key={story._id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition duration-200">
+                        <tr
+                          key={story._id}
+                          draggable
+                          onDragStart={(e) => handleBsDragStart(e, story._id)}
+                          onDragOver={(e) => handleBsDragOver(e, story._id)}
+                          onDrop={handleBsDrop}
+                          onDragEnd={handleBsDragEnd}
+                          className={`border-b transition duration-200 ${
+                            draggingBsId === story._id
+                              ? 'opacity-50 bg-purple-500/10 border-purple-500/50'
+                              : pendingBsOrder
+                                ? 'border-green-500/40 hover:bg-gray-800/30'
+                                : 'border-gray-800/50 hover:bg-gray-800/30'
+                          }`}
+                        >
+                          {/* Drag handle */}
+                          <td className="py-3 px-4 w-8">
+                            <div className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300 flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                <path d="M10 4h.01M14 4h.01M10 9h.01M14 9h.01M10 14h.01M14 14h.01M10 19h.01M14 19h.01" />
+                              </svg>
+                            </div>
+                          </td>
                           <td className="py-3 px-4">
                             <div className="w-12 h-12 bg-gradient-to-br from-green-600/20 to-blue-600/20 rounded-lg overflow-hidden">
                               {story.image ? (

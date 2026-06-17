@@ -16,7 +16,8 @@ const KidsSubmission = () => {
   const [expandedCard, setExpandedCard] = useState(null)
   const [selectedSubmission, setSelectedSubmission] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
-  const [modal, setModal] = useState({ show: false, type: '', message: '' })
+  const [detailsRemarks, setDetailsRemarks] = useState('')
+  const [modal, setModal] = useState({ isOpen: false, type: '', message: '', onConfirm: null, onCancel: null })
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
@@ -24,11 +25,15 @@ const KidsSubmission = () => {
   const [totalCount, setTotalCount] = useState(0)
   const ITEMS_PER_PAGE = 20
 
+  // Filter state — '' = All, 'Pending'/'Approved'/'Rejected' = status, 'highlighted' = highlight=Enable
+  const [activeFilter, setActiveFilter] = useState('')
+
   // Form states
   const [submissionForm, setSubmissionForm] = useState({
     contentType: 'story',
     title: '',
     storyOrPoem: '',
+    letter: '',
     drawingDescription: '',
     kidName: '',
     kidAge: '',
@@ -39,7 +44,11 @@ const KidsSubmission = () => {
     moreDescription: '',
     status: 'Pending',
     highlight: 'Disable',
+<<<<<<< HEAD
     highlightExpiresAt: ''
+=======
+    adminRemarks: ''
+>>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
   })
 
   // File upload states
@@ -57,11 +66,23 @@ const KidsSubmission = () => {
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('') 
 
+  // Filter handler — resets to page 1 on filter change
+  const handleFilterChange = (filter) => {
+    setActiveFilter(filter)
+    setCurrentPage(1)
+  }
+
   // Fetch submissions
-  const fetchSubmissions = async (page = currentPage) => {
+  const fetchSubmissions = async (page = currentPage, filter = activeFilter) => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/kids-submissions?page=${page}&limit=${ITEMS_PER_PAGE}`)
+      let filterParam = ''
+      if (filter === 'highlighted') {
+        filterParam = '&highlight=Enable'
+      } else if (filter) {
+        filterParam = `&status=${filter}`
+      }
+      const response = await fetch(`${API_BASE}/kids-submissions?page=${page}&limit=${ITEMS_PER_PAGE}${filterParam}`)
       const data = await response.json()
       if (data.success) {
         setSubmissions(data.data)
@@ -78,13 +99,19 @@ const KidsSubmission = () => {
   }
 
   useEffect(() => {
-    fetchSubmissions(currentPage)
-  }, [currentPage])
+    fetchSubmissions(currentPage, activeFilter)
+  }, [currentPage, activeFilter])
 
   // Modal functions
-  const showModal = (type, message) => {
-    setModal({ show: true, type, message })
-    setTimeout(() => setModal({ show: false, type: '', message: '' }), 3000)
+  const showModal = (type, message, onConfirm = null, onCancel = null) => {
+    setModal({ isOpen: true, type, message, onConfirm, onCancel })
+    if (type !== 'confirmation') {
+      setTimeout(() => setModal({ isOpen: false, type: '', message: '', onConfirm: null, onCancel: null }), 3000)
+    }
+  }
+
+  const closeModal = () => {
+    setModal({ isOpen: false, type: '', message: '', onConfirm: null, onCancel: null })
   }
 
   // Create submission
@@ -137,6 +164,11 @@ const KidsSubmission = () => {
       // --- Normal immediate upload flow ---
       const formData = new FormData()
       
+      // Add userId - required by API
+      const adminData = JSON.parse(localStorage.getItem('user') || '{}')
+      const userId = adminData._id || adminData.id || 'admin-submission'
+      formData.append('userId', userId)
+      
       // Add all form fields
       Object.keys(submissionForm).forEach(key => {
         if (submissionForm[key]) {
@@ -157,6 +189,9 @@ const KidsSubmission = () => {
 
       const response = await fetch(`${API_BASE}/kids-submissions`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
         body: formData
       })
       
@@ -260,6 +295,34 @@ const KidsSubmission = () => {
     }
   }
 
+  // Send admin remarks / suggestions via WhatsApp
+  const sendAdminRemarks = async () => {
+    if (!detailsRemarks.trim()) return
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/kids-submissions/${selectedSubmission._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ adminRemarks: detailsRemarks.trim() })
+      })
+      const data = await response.json()
+      if (data.success) {
+        showModal('success', 'Suggestions sent via WhatsApp!')
+        setSelectedSubmission({ ...selectedSubmission, adminRemarks: detailsRemarks.trim() })
+        fetchSubmissions(currentPage)
+      } else {
+        showModal('error', data.message || 'Failed to send suggestions')
+      }
+    } catch (error) {
+      showModal('error', 'Error sending suggestions')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Update submission highlight
   const updateSubmissionHighlight = async (submissionId, newHighlight) => {
     setLoading(true)
@@ -293,19 +356,19 @@ const KidsSubmission = () => {
   }
 
   // Delete submission
-  const deleteSubmission = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this submission?')) return
-    
+  const confirmDeleteSubmission = async (id) => {
     setLoading(true)
     try {
       const response = await fetch(`${API_BASE}/kids-submissions/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
       })
       
       const data = await response.json()
       if (data.success) {
         showModal('success', 'Submission deleted successfully!')
-        // If we deleted the last item on a page, go back one page
         const newPage = submissions.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage
         setCurrentPage(newPage)
         fetchSubmissions(newPage)
@@ -319,12 +382,17 @@ const KidsSubmission = () => {
     }
   }
 
+  const deleteSubmission = (id) => {
+    showModal('confirmation', 'Are you sure you want to delete this submission?', () => confirmDeleteSubmission(id), null)
+  }
+
   // Reset forms
   const resetSubmissionForm = () => {
     setSubmissionForm({
       contentType: 'story',
       title: '',
       storyOrPoem: '',
+      letter: '',
       drawingDescription: '',
       kidName: '',
       kidAge: '',
@@ -335,7 +403,11 @@ const KidsSubmission = () => {
       moreDescription: '',
       status: 'Pending',
       highlight: 'Disable',
+<<<<<<< HEAD
       highlightExpiresAt: ''
+=======
+      adminRemarks: ''
+>>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
     })
     setEditingSubmission(null)
     setShowForm(false)
@@ -356,6 +428,7 @@ const KidsSubmission = () => {
       contentType: submission.contentType || 'story',
       title: submission.title || '',
       storyOrPoem: submission.storyOrPoem || '',
+      letter: submission.letter || '',
       drawingDescription: submission.drawingDescription || '',
       kidName: submission.kidName || '',
       kidAge: submission.kidAge || '',
@@ -366,7 +439,11 @@ const KidsSubmission = () => {
       moreDescription: submission.moreDescription || '',
       status: submission.status || 'Pending',
       highlight: submission.highlight || 'Disable',
+<<<<<<< HEAD
       highlightExpiresAt: submission.highlightExpiresAt || ''
+=======
+      adminRemarks: submission.adminRemarks || ''
+>>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
     })
     setSelectedFileNames({
       coverImage: submission.coverImage ? submission.coverImage.split('/').pop() : '',
@@ -380,6 +457,7 @@ const KidsSubmission = () => {
 
   const viewSubmission = (submission) => {
     setSelectedSubmission(submission)
+    setDetailsRemarks(submission.adminRemarks || '')
     setShowDetails(true)
   }
 
@@ -389,6 +467,7 @@ const KidsSubmission = () => {
       case 'story': return <FiBook className="w-5 h-5" />
       case 'poem': return <FiFileText className="w-5 h-5" />
       case 'drawing': return <FiImage className="w-5 h-5" />
+      case 'letter': return <FiFileText className="w-5 h-5" />
       case 'other': return <FiStar className="w-5 h-5" />
       default: return <FiBook className="w-5 h-5" />
     }
@@ -427,6 +506,37 @@ const KidsSubmission = () => {
                 ></div>
               </h1>
             </div>
+          </div>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { label: 'All', value: '' },
+              { label: 'Pending', value: 'Pending' },
+              { label: 'Approved', value: 'Approved' },
+              { label: 'Rejected', value: 'Rejected' },
+              { label: '⭐ Highlighted', value: 'highlighted' },
+            ].map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => handleFilterChange(value)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition duration-200 border ${
+                  activeFilter === value
+                    ? 'text-white border-transparent'
+                    : 'text-gray-400 border-gray-700 hover:text-white hover:border-gray-500 bg-transparent'
+                }`}
+                style={activeFilter === value ? {
+                  background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)'
+                } : {}}
+              >
+                {label}
+                {activeFilter === value && totalCount > 0 && (
+                  <span className="ml-1.5 text-xs opacity-70">({totalCount})</span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -565,7 +675,13 @@ const KidsSubmission = () => {
           {!loading && submissions.length === 0 && (
             <div className="text-center py-12">
               <div className="text-gray-400 text-lg">No submissions found</div>
-              <p className="text-gray-500 mt-2">No submissions to display yet.</p>
+              <p className="text-gray-500 mt-2">
+                {activeFilter === 'highlighted'
+                  ? 'No highlighted submissions to display.'
+                  : activeFilter
+                  ? `No ${activeFilter.toLowerCase()} submissions to display.`
+                  : 'No submissions to display yet.'}
+              </p>
             </div>
           )}
         </div>
@@ -609,6 +725,7 @@ const KidsSubmission = () => {
                   <option value="story">Story</option>
                   <option value="poem">Poem</option>
                   <option value="drawing">Drawing</option>
+                  <option value="letter">Letter</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -627,7 +744,7 @@ const KidsSubmission = () => {
               </div>
 
               {/* Story or Poem */}
-              {submissionForm.contentType !== 'drawing' && submissionForm.contentType !== 'other' && (
+              {(submissionForm.contentType === 'story' || submissionForm.contentType === 'poem') && (
                 <div>
                   <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>
                     {submissionForm.contentType === 'story' ? 'Story' : 'Poem'} *
@@ -639,6 +756,21 @@ const KidsSubmission = () => {
                     rows={6}
                     className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400 resize-none"
                     placeholder={`Enter ${submissionForm.contentType} content`}
+                  />
+                </div>
+              )}
+
+              {/* Letter */}
+              {submissionForm.contentType === 'letter' && (
+                <div>
+                  <label className="block text-white text-sm font-semibold mb-3" style={{ fontFamily: 'Archivo Black' }}>Letter *</label>
+                  <textarea
+                    value={submissionForm.letter}
+                    onChange={(e) => setSubmissionForm({ ...submissionForm, letter: e.target.value })}
+                    required
+                    rows={8}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400 resize-none"
+                    placeholder="Enter letter content"
                   />
                 </div>
               )}
@@ -970,6 +1102,16 @@ const KidsSubmission = () => {
                 </div>
               )}
 
+              {/* Letter */}
+              {selectedSubmission.letter && (
+                <div>
+                  <h4 className="text-white font-semibold mb-3">Letter</h4>
+                  <div className="bg-gray-800/50 rounded-xl p-4">
+                    <p className="text-gray-300 whitespace-pre-wrap">{selectedSubmission.letter}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Drawing */}
               {selectedSubmission.drawing && (
                 <div>
@@ -1052,6 +1194,16 @@ const KidsSubmission = () => {
                 </div>
               )}
 
+              {/* Admin Remarks */}
+              {selectedSubmission.adminRemarks && (
+                <div>
+                  <h4 className="text-white font-semibold mb-3">Admin Remarks</h4>
+                  <div className="bg-purple-900/20 border border-purple-700/40 rounded-xl p-4">
+                    <p className="text-purple-200 whitespace-pre-wrap">{selectedSubmission.adminRemarks}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Submission Metadata */}
               <div>
                 <h4 className="text-white font-semibold mb-3">Submission Details</h4>
@@ -1081,6 +1233,28 @@ const KidsSubmission = () => {
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Admin Remarks / Suggestions */}
+                  <div className="space-y-2">
+                    <span className="text-gray-400 text-sm">Suggestions / Admin Remarks</span>
+                    <textarea
+                      value={detailsRemarks}
+                      onChange={(e) => setDetailsRemarks(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200 placeholder-gray-400 resize-none text-sm"
+                      placeholder="Write suggestions or feedback for the parent..."
+                      disabled={loading}
+                    />
+                    <button
+                      onClick={sendAdminRemarks}
+                      disabled={loading || !detailsRemarks.trim()}
+                      className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-semibold transition duration-200 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+                      style={{ background: 'linear-gradient(90.05deg, #AC28DC 6.68%, #7E1EB7 49.26%, #501392 91.85%)' }}
+                    >
+                      <span>📲</span>
+                      <span>Send via WhatsApp</span>
+                    </button>
                   </div>
                   
                   {/* Highlight Radio Buttons */}
@@ -1198,10 +1372,12 @@ const KidsSubmission = () => {
 
       {/* Success Modal */}
       <SuccessModal
-        show={modal.show}
+        isOpen={modal.isOpen}
         type={modal.type}
         message={modal.message}
-        onClose={() => setModal({ show: false, type: '', message: '' })}
+        onClose={closeModal}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
       />
     </div>
   )

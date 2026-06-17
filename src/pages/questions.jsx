@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import SuccessModal from '../components/SuccessModal'
 import axios from 'axios'
@@ -13,11 +14,15 @@ import {
 
 function Questions() {
   const API_BASE = import.meta.env.VITE_API_BASE_URL
+  const [searchParams] = useSearchParams()
+  const configIdFromUrl = searchParams.get('configId') || ''
+  const configNameFromUrl = searchParams.get('configName') || ''
+
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState(null)
-  const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '' })
+  const [modal, setModal] = useState({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null })
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
@@ -25,7 +30,9 @@ function Questions() {
     totalPages: 1
   })
   const [currentPage, setCurrentPage] = useState(1)
-  
+  const [configs, setConfigs] = useState([])
+  const [filterConfigId, setFilterConfigId] = useState(configIdFromUrl)
+
   const [formData, setFormData] = useState({
     questionText: '',
     mlQuestionText: '',
@@ -34,22 +41,41 @@ function Questions() {
     correctAnswer: 0,
     points: 1,
     category: '',
-    difficulty: 'Medium'
+    difficulty: 'Medium',
+    quizConfigId: configIdFromUrl,
+    optionCount: 4
   })
 
   useEffect(() => {
     fetchQuestions(1)
+    fetchConfigs()
   }, [])
 
-  const fetchQuestions = async (pageToLoad = 1) => {
+  const fetchConfigs = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      const response = await axios.get(`${API_BASE}/quizzes/config/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (response.data.success) {
+        setConfigs(response.data.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch configs:', error)
+    }
+  }
+
+  const fetchQuestions = async (pageToLoad = 1, cfgId = filterConfigId) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
+      const params = { page: pageToLoad, limit: pagination.limit || 20 }
+      if (cfgId) params.quizConfigId = cfgId
       const response = await axios.get(
         `${API_BASE}/questions`,
         {
           headers: { Authorization: `Bearer ${token}` },
-          params: { page: pageToLoad, limit: pagination.limit || 20 }
+          params
         }
       )
       if (response.data.success) {
@@ -69,12 +95,12 @@ function Questions() {
     }
   }
 
-  const showModal = (type, message) => {
-    setModal({ isOpen: true, type, message })
+  const showModal = (type, message, onConfirm = null, onCancel = null) => {
+    setModal({ isOpen: true, type, message, onConfirm, onCancel })
   }
 
   const closeModal = () => {
-    setModal({ isOpen: false, type: 'success', message: '' })
+    setModal({ isOpen: false, type: 'success', message: '', onConfirm: null, onCancel: null })
   }
 
   const handleInputChange = (e) => {
@@ -88,6 +114,26 @@ function Questions() {
       const newOptions = [...prev[key]]
       newOptions[index] = value
       return { ...prev, [key]: newOptions }
+    })
+  }
+
+  const handleOptionCountChange = (newCount) => {
+    const count = parseInt(newCount)
+    setFormData(prev => {
+      const resizeArray = (arr) => {
+        if (arr.length < count) {
+          return [...arr, ...Array(count - arr.length).fill('')]
+        }
+        return arr.slice(0, count)
+      }
+      const newCorrectAnswer = prev.correctAnswer >= count ? 0 : prev.correctAnswer
+      return {
+        ...prev,
+        optionCount: count,
+        options: resizeArray(prev.options),
+        mlOptions: resizeArray(prev.mlOptions),
+        correctAnswer: newCorrectAnswer
+      }
     })
   }
 
@@ -114,7 +160,10 @@ function Questions() {
       
       const method = editingQuestion ? 'put' : 'post'
       
-      const response = await axios[method](url, formData, {
+      // Strip UI-only field before sending to API
+      const { optionCount, ...payload } = formData
+
+      const response = await axios[method](url, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
@@ -133,22 +182,23 @@ function Questions() {
 
   const handleEdit = (question) => {
     setEditingQuestion(question)
+    const existingOptions = question.options || ['', '', '', '']
     setFormData({
       questionText: question.questionText || '',
       mlQuestionText: question.mlQuestionText || '',
-      options: question.options || ['', '', '', ''],
+      options: existingOptions,
       mlOptions: question.mlOptions || ['', '', '', ''],
       correctAnswer: question.correctAnswer || 0,
       points: question.points || 1,
       category: question.category || '',
-      difficulty: question.difficulty || 'Medium'
+      difficulty: question.difficulty || 'Medium',
+      quizConfigId: question.quizConfigId || filterConfigId || '',
+      optionCount: existingOptions.length
     })
     setShowForm(true)
   }
 
-  const handleDelete = async (questionId) => {
-    if (!window.confirm('Are you sure you want to delete this question?')) return
-
+  const confirmDelete = async (questionId) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
@@ -158,8 +208,6 @@ function Questions() {
 
       if (response.data.success) {
         showModal('success', 'Question deleted successfully')
-        // If we deleted the last item on the current page, and it's now empty,
-        // move back one page (if possible) to avoid showing an empty list.
         const isLastItemOnPage = questions.length === 1 && currentPage > 1
         const nextPage = isLastItemOnPage ? currentPage - 1 : currentPage
         fetchQuestions(nextPage)
@@ -171,6 +219,10 @@ function Questions() {
     }
   }
 
+  const handleDelete = (questionId) => {
+    showModal('confirmation', 'Are you sure you want to delete this question?', () => confirmDelete(questionId), null)
+  }
+
   const resetForm = () => {
     setFormData({
       questionText: '',
@@ -180,7 +232,9 @@ function Questions() {
       correctAnswer: 0,
       points: 1,
       category: '',
-      difficulty: 'Medium'
+      difficulty: 'Medium',
+      quizConfigId: filterConfigId || '',
+      optionCount: 4
     })
     setEditingQuestion(null)
   }
@@ -193,19 +247,46 @@ function Questions() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-4xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
-              Question Bank
-            </h1>
-            <button
-              onClick={() => {
-                resetForm()
-                setShowForm(true)
-              }}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <FiPlus className="w-5 h-5" />
-              <span>Add Question</span>
-            </button>
+            <div>
+              <h1 className="text-4xl font-bold text-white" style={{ fontFamily: 'Archivo Black' }}>
+                Question Bank
+              </h1>
+              {(configNameFromUrl || filterConfigId) && (
+                <p className="text-purple-400 mt-1 text-sm">
+                  Quiz: <span className="font-semibold">
+                    {configNameFromUrl || configs.find(c => c._id === filterConfigId)?.name || 'Selected Quiz'}
+                  </span>
+                </p>
+              )}
+            </div>
+            <div className="flex items-center space-x-3">
+              {configs.length > 0 && !configIdFromUrl && (
+                <select
+                  value={filterConfigId}
+                  onChange={(e) => {
+                    const newId = e.target.value
+                    setFilterConfigId(newId)
+                    fetchQuestions(1, newId)
+                  }}
+                  className="px-3 py-2 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                >
+                  <option value="">All Quizzes</option>
+                  {configs.map(c => (
+                    <option key={c._id} value={c._id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                onClick={() => {
+                  resetForm()
+                  setShowForm(true)
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <FiPlus className="w-5 h-5" />
+                <span>Add Question</span>
+              </button>
+            </div>
           </div>
 
           {/* Question Form Modal */}
@@ -255,6 +336,30 @@ function Questions() {
                         className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-purple-500"
                         required
                       />
+                    </div>
+
+                    {/* Number of Options Selector */}
+                    <div className="flex items-center space-x-4 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
+                      <label className="text-sm font-medium text-gray-300 whitespace-nowrap">
+                        Number of Options *
+                      </label>
+                      <div className="flex space-x-2">
+                        {[2, 3, 4].map(n => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => handleOptionCountChange(n)}
+                            className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
+                              formData.optionCount === n
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-400">Default is 4</span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -314,6 +419,24 @@ function Questions() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {configs.length > 0 && (
+                        <div className="md:col-span-3">
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Quiz Programme
+                          </label>
+                          <select
+                            name="quizConfigId"
+                            value={formData.quizConfigId}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-purple-500"
+                          >
+                            <option value="">Not assigned</option>
+                            {configs.map(c => (
+                              <option key={c._id} value={c._id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">
                           Points *
@@ -439,6 +562,11 @@ function Questions() {
                               Category: <span className="text-white">{question.category}</span>
                             </span>
                           )}
+                          {question.quizConfigId && (
+                            <span className="px-2 py-0.5 bg-purple-900 text-purple-300 rounded-full text-xs">
+                              {configs.find(c => c._id === (question.quizConfigId?._id || question.quizConfigId))?.name || 'Quiz'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -506,6 +634,8 @@ function Questions() {
         type={modal.type}
         message={modal.message}
         onClose={closeModal}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
       />
     </div>
   )

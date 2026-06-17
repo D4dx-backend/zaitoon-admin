@@ -23,7 +23,11 @@ import {
   Square3Stack3DIcon,
   SparklesIcon,
   MegaphoneIcon,
+<<<<<<< HEAD
   ClockIcon
+=======
+  PaintBrushIcon
+>>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
 } from '@heroicons/react/24/outline'
 import logo from '../assets/logo.png'
 import dxLogo from '../assets/dxLogoWhite.png'
@@ -50,7 +54,11 @@ const menuGroups = [
     icon: UserGroupIcon,
     items: [
       { label: 'Kids Submissions', path: '/kids-submissions', icon: UserGroupIcon },
+      { label: 'Notices', path: '/notices', icon: MegaphoneIcon },
       { label: 'Puzzles', path: '/puzzles', icon: PuzzlePieceIcon },
+      { label: 'Story Puzzle', path: '/story-puzzle', icon: BookOpenIcon },
+      { label: 'Coloring', path: '/coloring', icon: PaintBrushIcon },
+      { label: 'Gallery', path: '/gallery', icon: PhotoIcon },
     ]
   },
   {
@@ -68,15 +76,23 @@ const menuGroups = [
     label: 'Marketing',
     icon: MegaphoneIcon,
     items: [
+      { label: 'Home Banner', path: '/home-banner', icon: SparklesIcon },
       { label: 'Banners', path: '/banners', icon: PhotoIcon },
       { label: 'Payment Banner', path: '/payment-banner', icon: CreditCardIcon },
       { label: 'Notifications', path: '/notifications', icon: BellAlertIcon },
     ]
   },
   {
+    label: 'Analytics',
+    icon: ChartBarIcon,
     items: [
+<<<<<<< HEAD
       { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon },
       { label: 'Scheduled Uploads', path: '/scheduled', icon: ClockIcon }
+=======
+      { label: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+      { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon },
+>>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
     ]
   }
 ]

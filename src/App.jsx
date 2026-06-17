@@ -21,6 +21,12 @@ import QuizTest from './pages/quizTest'
 import Notifications from './pages/notifications'
 import Activity from './pages/activity'
 import Scheduled from './pages/scheduled'
+import StoryPuzzle from './pages/storyPuzzle'
+import Coloring from './pages/coloring'
+import Gallery from './pages/gallery'
+import Analytics from './pages/analytics'
+import HomeBanner from './pages/homeBanner'
+import Notices from './pages/notices'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -210,10 +216,58 @@ function App() {
           } 
         />
         <Route 
+          path="/notices" 
+          element={
+            isAuthenticated ? 
+            <Notices /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/analytics" 
+          element={
+            isAuthenticated ? 
+            <Analytics /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
           path="/activity" 
           element={
             isAuthenticated ? 
             <Activity /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/story-puzzle" 
+          element={
+            isAuthenticated ? 
+            <StoryPuzzle /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/coloring" 
+          element={
+            isAuthenticated ? 
+            <Coloring /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/gallery" 
+          element={
+            isAuthenticated ? 
+            <Gallery /> : 
+            <Navigate to="/login" replace />
+          } 
+        />
+        <Route 
+          path="/home-banner" 
+          element={
+            isAuthenticated ? 
+            <HomeBanner /> : 
             <Navigate to="/login" replace />
           } 
         />

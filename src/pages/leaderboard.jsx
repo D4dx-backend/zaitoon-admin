@@ -31,18 +31,42 @@ function Leaderboard() {
   const [page, setPage] = useState(1)
   const searchTimerRef = useRef(null)
 
+  // Quiz config filter
+  const [configs, setConfigs] = useState([])
+  const [selectedConfigId, setSelectedConfigId] = useState('')
+
   // User detail modal
   const [selectedUser, setSelectedUser] = useState(null)
   const [userAttempts, setUserAttempts] = useState([])
   const [userAttemptsLoading, setUserAttemptsLoading] = useState(false)
 
+  // ─── Global Leaderboard state ────────────────────────────────────────────
+  const [globalLeaderboard, setGlobalLeaderboard] = useState([])
+  const [globalPeriod, setGlobalPeriod] = useState('alltime')
+  const [globalLoading, setGlobalLoading] = useState(false)
+  const [globalPage, setGlobalPage] = useState(1)
+  const [globalPagination, setGlobalPagination] = useState({ total: 0, page: 1, totalPages: 1 })
+
   useEffect(() => {
     fetchData()
+    fetchConfigs()
   }, [])
+
+  const fetchConfigs = async () => {
+    try {
+      const token = localStorage.getItem('adminToken')
+      const res = await axios.get(`${API_BASE}/quizzes/config/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.data.success) setConfigs(res.data.data || [])
+    } catch (e) {
+      console.error('Failed to fetch quiz configs:', e)
+    }
+  }
 
   const fetchData = useCallback(async (
     from = fromDate, to = toDate, mode = viewMode,
-    allTime = totalAllTime, p = page, s = search
+    allTime = totalAllTime, p = page, s = search, configId = selectedConfigId
   ) => {
     const isByEmail = mode === 'byEmail'
     if (!isByEmail && (!from || !to)) return
@@ -54,13 +78,20 @@ function Leaderboard() {
       params.set('page', p)
       params.set('limit', LIMIT)
       if (s && s.trim()) params.set('search', s.trim())
+      if (configId) params.set('configId', configId)
 
       let url
       if (isByEmail) {
         if (!allTime) { params.set('startDate', from); params.set('endDate', to) }
         url = `${API_BASE}/quizzes/leaderboard/by-email?${params}`
       } else {
-        params.set('date', from === to ? from : to)
+        // Use date range when from !== to, otherwise single date
+        if (from && to && from !== to) {
+          params.set('startDate', from)
+          params.set('endDate', to)
+        } else {
+          params.set('date', from || to)
+        }
         url = `${API_BASE}/quizzes/leaderboard/daily?${params}`
       }
 
@@ -93,40 +124,71 @@ function Leaderboard() {
     } finally {
       setLoading(false)
     }
-  }, [fromDate, toDate, viewMode, totalAllTime, page, search, API_BASE])
+  }, [fromDate, toDate, viewMode, totalAllTime, page, search, API_BASE, selectedConfigId])
 
   // Debounced search
   const handleSearchChange = (val) => {
     setSearch(val)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
-      setPage(1)
-      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, val)
+      if (viewMode === 'global') {
+        fetchGlobalData(globalPeriod, 1, val)
+      } else {
+        setPage(1)
+        fetchData(fromDate, toDate, viewMode, totalAllTime, 1, val, selectedConfigId)
+      }
     }, 400)
   }
 
   const handlePageChange = (newPage) => {
     setPage(newPage)
-    fetchData(fromDate, toDate, viewMode, totalAllTime, newPage, search)
+    fetchData(fromDate, toDate, viewMode, totalAllTime, newPage, search, selectedConfigId)
   }
 
   const handleApplyRange = () => {
     setPage(1)
     if (viewMode === 'byEmail' && totalAllTime) {
-      fetchData(fromDate, toDate, viewMode, true, 1, search)
+      fetchData(fromDate, toDate, viewMode, true, 1, search, selectedConfigId)
     } else if (fromDate && toDate && fromDate <= toDate) {
-      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, search)
+      fetchData(fromDate, toDate, viewMode, totalAllTime, 1, search, selectedConfigId)
     }
   }
 
   const setMode = (mode) => {
     setViewMode(mode)
     setPage(1)
-    if (mode === 'byEmail') {
+    if (mode === 'global') {
+      fetchGlobalData('alltime')
+    } else if (mode === 'byEmail') {
       setTotalAllTime(true)
-      fetchData(fromDate, toDate, 'byEmail', true, 1, search)
+      fetchData(fromDate, toDate, 'byEmail', true, 1, search, selectedConfigId)
     } else {
-      fetchData(fromDate, toDate, 'daily', false, 1, search)
+      fetchData(fromDate, toDate, 'daily', false, 1, search, selectedConfigId)
+    }
+  }
+
+  const fetchGlobalData = async (period = 'alltime', p = 1, s = search) => {
+    setGlobalPeriod(period)
+    setGlobalPage(p)
+    setGlobalLoading(true)
+    try {
+      const params = new URLSearchParams({ period, page: p, limit: LIMIT })
+      if (s && s.trim()) params.set('search', s.trim())
+      const response = await axios.get(`${API_BASE}/leaderboard?${params}`)
+      if (response.data.success) {
+        const pg = response.data.data.pagination || { total: 0, page: p, totalPages: 1 }
+        setGlobalLeaderboard(response.data.data.leaderboard || [])
+        setGlobalPagination(pg)
+      } else {
+        setGlobalLeaderboard([])
+        setGlobalPagination({ total: 0, page: 1, totalPages: 1 })
+      }
+    } catch (error) {
+      console.error('Failed to fetch global leaderboard:', error)
+      setGlobalLeaderboard([])
+      setGlobalPagination({ total: 0, page: 1, totalPages: 1 })
+    } finally {
+      setGlobalLoading(false)
     }
   }
 
@@ -135,8 +197,8 @@ function Leaderboard() {
     setTotalAllTime(checked)
     setPage(1)
     if (viewMode === 'byEmail') {
-      if (checked) fetchData(fromDate, toDate, viewMode, true, 1, search)
-      else if (fromDate && toDate) fetchData(fromDate, toDate, viewMode, false, 1, search)
+      if (checked) fetchData(fromDate, toDate, viewMode, true, 1, search, selectedConfigId)
+      else if (fromDate && toDate) fetchData(fromDate, toDate, viewMode, false, 1, search, selectedConfigId)
     }
   }
 
@@ -146,7 +208,7 @@ function Leaderboard() {
     setTotalAllTime(false)
     setPage(1)
     setSearch('')
-    fetchData(today(), today(), viewMode, false, 1, '')
+    fetchData(today(), today(), viewMode, false, 1, '', selectedConfigId)
   }
 
   // Fetch user's individual attempts for the modal
@@ -158,8 +220,12 @@ function Leaderboard() {
     setUserAttemptsLoading(true)
     try {
       const token = localStorage.getItem('adminToken')
+      const params = new URLSearchParams()
+      params.set('email', email)
+      params.set('limit', '50')
+      if (selectedConfigId) params.set('configId', selectedConfigId)
       const response = await axios.get(
-        `${API_BASE}/quiz-attempts/admin/all?email=${encodeURIComponent(email)}&limit=50`,
+        `${API_BASE}/quiz-attempts/admin/all?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (response.data.success) {
@@ -219,8 +285,9 @@ function Leaderboard() {
               {/* View mode tabs */}
               <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
                 {[
-                  { key: 'daily', label: 'Daily' },
-                  { key: 'byEmail', label: 'Total' }
+                  { key: 'daily', label: 'Daily Quiz' },
+                  { key: 'byEmail', label: 'Quiz Total' },
+                  { key: 'global', label: '🌍 Global' },
                 ].map(tab => (
                   <button
                     key={tab.key}
@@ -247,6 +314,25 @@ function Leaderboard() {
 
           {/* Filters row */}
           <div className="flex flex-wrap items-center gap-3 mb-6">
+            {/* Quiz selector — only when not Global mode */}
+            {viewMode !== 'global' && configs.length > 0 && (
+              <select
+                value={selectedConfigId}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setSelectedConfigId(val)
+                  setPage(1)
+                  fetchData(fromDate, toDate, viewMode, totalAllTime, 1, search, val)
+                }}
+                className="px-3 py-2 bg-gray-800 text-white text-sm rounded-lg border border-gray-700 focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">All Quizzes</option>
+                {configs.map(c => (
+                  <option key={c._id} value={c._id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+
             {/* Search */}
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -288,7 +374,131 @@ function Leaderboard() {
           </div>
 
           {/* Table */}
-          {loading ? (
+          {viewMode === 'global' ? (
+            /* ── Global Leaderboard ──────────────────────────────── */
+            <div>
+              {/* Period filter */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-gray-400 text-sm">Period:</span>
+                {['weekly', 'monthly', 'alltime'].map(p => (
+                  <button
+                    key={p}
+                    onClick={() => fetchGlobalData(p, 1, search)}
+                    className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                      globalPeriod === p
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
+                    }`}
+                  >
+                    {p === 'weekly' ? 'This Week' : p === 'monthly' ? 'This Month' : 'All Time'}
+                  </button>
+                ))}
+                <button
+                  onClick={() => fetchGlobalData(globalPeriod, 1, search)}
+                  className="ml-2 flex items-center space-x-1 px-3 py-1 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 text-sm"
+                >
+                  <FiRefreshCw className="w-3 h-3" />
+                  <span>Refresh</span>
+                </button>
+                <span className="ml-auto text-xs text-gray-500">
+                  Points: 1 pt/quiz score + 10 pts/puzzle ⭐
+                </span>
+              </div>
+              {globalLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+                  <p className="text-gray-400 mt-4">Loading global leaderboard...</p>
+                </div>
+              ) : globalLeaderboard.length === 0 ? (
+                <div className="text-center py-12">
+                  <FiAward className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No data found for this period.</p>
+                </div>
+              ) : (
+                  <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-700/50 flex items-center justify-between text-sm text-gray-400">
+                    <span>Showing {(globalPagination.page - 1) * LIMIT + 1}–{Math.min(globalPagination.page * LIMIT, globalPagination.total)} of {globalPagination.total} user(s)</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-700">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rank</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Class</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Quiz Pts</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Puzzle Pts</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Quizzes</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Puzzles</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-700">
+                        {globalLeaderboard.map((entry) => (
+                          <tr
+                            key={entry.firebaseUid || entry.rank}
+                            className={`hover:bg-gray-700/50 transition-colors ${
+                              entry.rank <= 3 ? 'bg-purple-900/20' : ''
+                            }`}
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-lg font-bold text-white">
+                                {getRankIcon(entry.rank) || `#${entry.rank}`}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="text-sm font-medium text-white">{entry.name}</div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                              {entry.userClass || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-blue-400 font-semibold">{entry.quizPoints}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-orange-400 font-semibold">{entry.puzzlePoints}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-xl font-bold text-purple-400">{entry.totalPoints}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
+                              {entry.quizAttempts}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
+                              {entry.puzzlesCompleted}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {globalPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-t border-gray-700">
+                      <p className="text-sm text-gray-400">Page {globalPagination.page} of {globalPagination.totalPages}</p>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => fetchGlobalData(globalPeriod, globalPagination.page - 1, search)}
+                          disabled={globalPagination.page <= 1}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+                        >
+                          <FiChevronLeft className="w-4 h-4" />
+                          <span>Prev</span>
+                        </button>
+                        <button
+                          onClick={() => fetchGlobalData(globalPeriod, globalPagination.page + 1, search)}
+                          disabled={globalPagination.page >= globalPagination.totalPages}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+                        >
+                          <span>Next</span>
+                          <FiChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
               <p className="text-gray-400 mt-4">Loading leaderboard...</p>
@@ -305,7 +515,7 @@ function Leaderboard() {
               <div className="px-4 py-2 bg-gray-700/50 flex items-center justify-between text-sm text-gray-400">
                 <span>
                   Showing {(pagination.page - 1) * LIMIT + 1}–{Math.min(pagination.page * LIMIT, pagination.total)} of {pagination.total}
-                  {' '}{viewMode === 'byEmail' ? 'email(s)' : viewMode === 'total' ? 'user(s)' : 'attempt(s)'}
+                  {' '}{viewMode === 'byEmail' ? 'email(s)' : 'attempt(s)'}
                 </span>
               </div>
               <div className="overflow-x-auto">
