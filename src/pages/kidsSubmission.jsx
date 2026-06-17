@@ -44,11 +44,8 @@ const KidsSubmission = () => {
     moreDescription: '',
     status: 'Pending',
     highlight: 'Disable',
-<<<<<<< HEAD
-    highlightExpiresAt: ''
-=======
+    highlightExpiresAt: '',
     adminRemarks: ''
->>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
   })
 
   // File upload states
@@ -403,11 +400,8 @@ const KidsSubmission = () => {
       moreDescription: '',
       status: 'Pending',
       highlight: 'Disable',
-<<<<<<< HEAD
-      highlightExpiresAt: ''
-=======
+      highlightExpiresAt: '',
       adminRemarks: ''
->>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
     })
     setEditingSubmission(null)
     setShowForm(false)
@@ -439,11 +433,8 @@ const KidsSubmission = () => {
       moreDescription: submission.moreDescription || '',
       status: submission.status || 'Pending',
       highlight: submission.highlight || 'Disable',
-<<<<<<< HEAD
-      highlightExpiresAt: submission.highlightExpiresAt || ''
-=======
+      highlightExpiresAt: submission.highlightExpiresAt || '',
       adminRemarks: submission.adminRemarks || ''
->>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
     })
     setSelectedFileNames({
       coverImage: submission.coverImage ? submission.coverImage.split('/').pop() : '',

@@ -3,7 +3,8 @@ import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiUpload, FiImage, FiFile, FiFold
 import SuccessModal from '../components/SuccessModal'
 import CustomDropdown from '../components/CustomDropdown'
 import Sidebar from '../components/Sidebar'
-import SchedulePicker from '../components/SchedulePicker'\nimport HighlightDurationPicker from '../components/HighlightDurationPicker'
+import SchedulePicker from '../components/SchedulePicker'
+import HighlightDurationPicker from '../components/HighlightDurationPicker'
 import gradient from '../assets/gradiantRight.png'
 
 const BrightBox = () => {
