@@ -23,11 +23,8 @@ import {
   Square3Stack3DIcon,
   SparklesIcon,
   MegaphoneIcon,
-<<<<<<< HEAD
-  ClockIcon
-=======
+  ClockIcon,
   PaintBrushIcon
->>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
 } from '@heroicons/react/24/outline'
 import logo from '../assets/logo.png'
 import dxLogo from '../assets/dxLogoWhite.png'
@@ -86,13 +83,10 @@ const menuGroups = [
     label: 'Analytics',
     icon: ChartBarIcon,
     items: [
-<<<<<<< HEAD
-      { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon },
-      { label: 'Scheduled Uploads', path: '/scheduled', icon: ClockIcon }
-=======
+     
+      { label: 'Scheduled Uploads', path: '/scheduled', icon: ClockIcon },
       { label: 'Analytics', path: '/analytics', icon: ChartBarIcon },
       { label: 'Growth & Activity', path: '/activity', icon: ChartBarIcon },
->>>>>>> 0a99d868608bcac1ed9ad95473233729a6b14d92
     ]
   }
 ]
